@@ -17,9 +17,33 @@ from pydantic import ValidationError
 
 from interpreter.error_codes import ErrorCode
 from interpreter.exceptions import InterpreterError
-from interpreter.input_model import Program
+from interpreter.input_model import ClassDef, Program
 
 logger = logging.getLogger(__name__)
+
+
+class SolClass:
+    """Representation of SOL26 class in memory"""
+
+    def __init__(self, name: str, parent_name: str | None, ast_node: ClassDef):
+        self.name = name
+        self.parent_name = parent_name
+        self.ast_node = ast_node
+
+
+class SolInst:
+    """Representation of specific object in memory"""
+
+    def __init__(self, sol_class: SolClass):
+        self.sol_class = sol_class
+        self.attrs: dict[str, SolInst] = {}
+
+
+class LocalFrame:
+    """Represents local variables for blocks or methods"""
+
+    def __init__(self) -> None:
+        self.vars: dict[str, SolInst] = {}
 
 
 class Interpreter:
@@ -29,6 +53,7 @@ class Interpreter:
 
     def __init__(self) -> None:
         self.current_program: Program | None = None
+        self.class_table: dict[str, SolClass] = {}  # Memory for classes
 
     def load_program(self, source_file_path: Path) -> None:
         """
@@ -92,6 +117,25 @@ class Interpreter:
         """
         logger.info("Executing program")
 
-        #
+        # Check for mypy that program is not None
+        if self.current_program is None:
+            return
 
-        #
+        # First we have to fill our tables with all classes
+        for ast_class in self.current_program.classes:
+            class_name = ast_class.name
+
+            # Check for redefinitions
+            if class_name in self.class_table:
+                raise InterpreterError(
+                    error_code=ErrorCode.SEM_ERROR,
+                    message=f"Redefinition of existing class: {class_name}",
+                )
+
+            # Save to memory
+            self.class_table[class_name] = SolClass(
+                name=class_name,
+                # Check if class has parent, assign None when not
+                parent_name=ast_class.parent if ast_class.parent else None,
+                ast_node=ast_class,
+            )
