@@ -52,10 +52,46 @@ class Interpreter:
                 error_code=ErrorCode.INT_STRUCTURE, message="Invalid SOL-XML structure"
             ) from e
 
+        # Start static checks
+        self._static_check()
+
+    def _static_check(self) -> None:
+        # Extra check if the program was loaded
+        if self.current_program is None:
+            return
+
+        # Check if the Main class is defined
+        main_class = None
+        for cls in self.current_program.classes:
+            if cls.name == "Main":
+                main_class = cls
+            break
+
+        # Throw an error if the Main class is missing
+        if main_class is None:
+            raise InterpreterError(
+                error_code=ErrorCode.SEM_MAIN, message="Main class is missing in the program!"
+            )
+
+        run_method = None
+        for method in main_class.methods:
+            if method.selector == "run":
+                run_method = method
+            break
+
+        if run_method is None:
+            raise InterpreterError(
+                error_code=ErrorCode.SEM_MAIN, message="run method is missing in Main class!"
+            )
+
+        logger.info("Static check successful!")
+
     def execute(self, input_io: TextIO) -> None:
         """
         Executes the currently loaded program, using the provided input stream as standard input.
         """
         logger.info("Executing program")
-        # TODO: Your logic goes here.
 
+        #
+
+        #
