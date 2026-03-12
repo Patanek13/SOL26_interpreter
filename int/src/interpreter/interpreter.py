@@ -139,3 +139,33 @@ class Interpreter:
                 parent_name=ast_class.parent if ast_class.parent else None,
                 ast_node=ast_class,
             )
+
+        # Create first instance
+        main_cls_def = self.class_table["Main"]
+        main_inst = SolInst(sol_class=main_cls_def)
+
+        # Find run method in Main class
+        run_method_node = None
+        for method in main_cls_def.ast_node.methods:
+            if method.selector == "run":
+                run_method_node = method
+                break
+
+        # Check for mypy but run should be checked already (defensive programming ig)
+        if run_method_node is None:
+            raise InterpreterError(
+                error_code=ErrorCode.SEM_ERROR, message="Method run or its block is missing"
+            )
+
+        # Local frame where we save self as ptr to object on which we call the method
+        curr_frame = LocalFrame()
+        curr_frame.vars["self"] = main_inst
+
+        logger.info("Start method Main.run")
+
+        # Blocks in method run
+        for statement in run_method_node.block.assigns:
+            #
+            #
+            #
+            print(f"Found the cmd of type: {type(statement).__name__}")
