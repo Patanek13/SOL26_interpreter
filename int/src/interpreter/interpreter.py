@@ -17,7 +17,7 @@ from pydantic import ValidationError
 
 from interpreter.error_codes import ErrorCode
 from interpreter.exceptions import InterpreterError
-from interpreter.input_model import ClassDef, Program
+from interpreter.input_model import Assign, ClassDef, Expr, Program
 
 logger = logging.getLogger(__name__)
 
@@ -164,8 +164,27 @@ class Interpreter:
         logger.info("Start method Main.run")
 
         # Blocks in method run
-        for statement in run_method_node.block.assigns:
-            #
-            #
-            #
-            print(f"Found the cmd of type: {type(statement).__name__}")
+        for assign_node in run_method_node.block.assigns:
+            self.eval_assign(assign_node, curr_frame)
+
+    def eval_assign(self, assign_node: Assign, curr_frame: LocalFrame) -> None:
+        """Evaluates assign cmd and saves result into current frame"""
+
+        # Evaluate the expr (right side)
+        final_result = self.eval_expr(assign_node.expr, curr_frame)
+
+        # Track the name of variable
+        var_name = assign_node.target.name
+
+        # Save result into local memory (curr_frame), we don't need to save _var
+        if var_name == "_":
+            logger.info("Assign: not saving result of var '_' ")
+        else:
+            curr_frame.vars[var_name] = final_result
+            logger.info(f"Assign: Saved object into {var_name}")
+
+    def eval_expr(self, expr_node: Expr, curr_fram: LocalFrame) -> SolInst:
+        """Evaluates any expression (var, literal, block, send) and returns final object"""
+        logger.info("Evaluating expression")
+
+        return SolInst(sol_class=self.class_table["Main"])
