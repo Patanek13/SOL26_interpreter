@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <program language="SOL26" description="&lt;- No main method defined">
 <class name="Main" parent="Object">
+<method selector="run">
 <block arity="2">
 <parameter name="one" order="1" />
 <parameter name="two" order="2"></parameter>
@@ -16,5 +17,6 @@
 </expr>
 </assign>
 </block>
+</method>
 </class>
 </program>
