@@ -17,7 +17,7 @@ from pydantic import ValidationError
 
 from interpreter.error_codes import ErrorCode
 from interpreter.exceptions import InterpreterError
-from interpreter.input_model import Assign, ClassDef, Expr, Program
+from interpreter.input_model import Assign, ClassDef, Expr, Program, Send
 
 logger = logging.getLogger(__name__)
 
@@ -270,16 +270,34 @@ class Interpreter:
 
         # Send
         if expr_node.send is not None:
-            logger.info("SEND: not working yet")
-            #### todooo
-            return SolInst(sol_class=self.class_table["Main"])
+            logger.info("SEND: executing")
+            # Process the message
+            return self.eval_send(expr_node.send, curr_frame)
 
         if expr_node.block is not None:
             logger.info("BLOCK: not working yet")
             ### todooo
             return SolInst(sol_class=self.class_table["Main"])
 
-        # Extra check but shouldn't get there, we have validator
+        # Extra check but shouldn't get here, we have validator
         raise InterpreterError(
             error_code=ErrorCode.INT_STRUCTURE, message="Unknown expression type in AST"
         )
+
+    def eval_send(self, send_node: Send, curr_frame: LocalFrame) -> SolInst:
+        """Processes sending messages"""
+        selector = send_node.selector
+        logger.info(f"Processing message: {selector}")
+
+        # Who is the receiver
+        message_receiver = self.eval_expr(send_node.receiver, curr_frame)
+
+        # Now parse all args, which we pass to the method
+        parsed_args = []
+        for arg in send_node.args:
+            # args have expr node
+            arg_obj = self.eval_expr(arg.expr, curr_frame)
+            parsed_args.append(arg_obj)
+
+        ## todoo find and execute method on receiver
+        return message_receiver
