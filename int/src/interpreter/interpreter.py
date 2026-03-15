@@ -4,7 +4,7 @@ This module contains the main logic of the interpreter.
 IPP: You must definitely modify this file. Bend it to your will.
 
 Author: Ondřej Ondryáš <iondryas@fit.vut.cz>
-Author:
+Author: Patrik Lošťák <xlostap00>
 """
 
 import logging
@@ -183,8 +183,49 @@ class Interpreter:
             curr_frame.vars[var_name] = final_result
             logger.info(f"Assign: Saved object into {var_name}")
 
-    def eval_expr(self, expr_node: Expr, curr_fram: LocalFrame) -> SolInst:
+    def eval_expr(self, expr_node: Expr, curr_frame: LocalFrame) -> SolInst:
         """Evaluates any expression (var, literal, block, send) and returns final object"""
         logger.info("Evaluating expression")
 
-        return SolInst(sol_class=self.class_table["Main"])
+        # Read variable
+        if expr_node.var is not None:
+            var_name = expr_node.var.name
+            logger.info(f"Reading var {var_name}")
+
+            # Local variables
+            if var_name in curr_frame.vars:
+                return curr_frame.vars[var_name]
+
+            # Instance attributes of object (self)
+            curr_self = curr_frame.vars.get("self")
+            if curr_self and var_name in curr_self.attrs:
+                return curr_self.attrs[var_name]
+
+            # Undefined variable
+            raise InterpreterError(
+                error_code=ErrorCode.SEM_UNDEF,
+                message=f"Try to read undefined variable {var_name}",
+            )
+
+        # Literal (integer, string, nil, true, false)
+        if expr_node.literal is not None:
+            literal_value = expr_node.literal.value
+            logger.info(f"Processing literal value {literal_value}")
+            #### todooo
+            return SolInst(sol_class=self.class_table["Main"])
+
+        # Send
+        if expr_node.send is not None:
+            logger.info("SEND: not working yet")
+            #### todooo
+            return SolInst(sol_class=self.class_table["Main"])
+
+        if expr_node.block is not None:
+            logger.info("BLOCK: not working yet")
+            ### todooo
+            return SolInst(sol_class=self.class_table["Main"])
+
+        # Extra check but shouldn't get there, we have validator
+        raise InterpreterError(
+            error_code=ErrorCode.INT_STRUCTURE, message="Unknown expression type in AST"
+        )
