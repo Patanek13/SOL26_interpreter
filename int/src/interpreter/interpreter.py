@@ -25,7 +25,10 @@ logger = logging.getLogger(__name__)
 class SolClass:
     """Representation of SOL26 class in memory"""
 
-    def __init__(self, name: str, parent_name: str | None, ast_node: ClassDef):
+    # ast_node can be empty beacuse of builtins (classes without xml)
+    def __init__(
+        self, name: str, parent_name: str | None = None, ast_node: ClassDef | None = None
+    ):
         self.name = name
         self.parent_name = parent_name
         self.ast_node = ast_node
@@ -34,9 +37,10 @@ class SolClass:
 class SolInst:
     """Representation of specific object in memory"""
 
-    def __init__(self, sol_class: SolClass):
+    def __init__(self, sol_class: SolClass, val: int | str | bool | None = None):
         self.sol_class = sol_class
         self.attrs: dict[str, SolInst] = {}
+        self.val = val
 
 
 class LocalFrame:
@@ -81,6 +85,7 @@ class Interpreter:
         self._static_check()
 
     def _static_check(self) -> None:
+        """Checks the program if Main class exists and checks also for run method"""
         # Extra check if the program was loaded
         if self.current_program is None:
             return
@@ -111,6 +116,24 @@ class Interpreter:
 
         logger.info("Static check successful!")
 
+    def initialize_builtins(self) -> None:
+        """Initialize class_table with builtins (builtin classes of SOL26)"""
+
+        # All classes inherits from class Object
+        self.class_table["Object"] = SolClass(name="Object")
+
+        # Data types
+        self.class_table["Integer"] = SolClass(name="Integer", parent_name="Object")
+        self.class_table["String"] = SolClass(name="String", parent_name="Object")
+        self.class_table["Nil"] = SolClass(name="Nil", parent_name="Object")
+        self.class_table["Block"] = SolClass(name="Block", parent_name="Object")
+
+        # Logical values
+        self.class_table["True"] = SolClass(name="True", parent_name="Object")
+        self.class_table["False"] = SolClass(name="False", parent_name="Object")
+
+        logger.info("All bultin classes were loaded")
+
     def execute(self, input_io: TextIO) -> None:
         """
         Executes the currently loaded program, using the provided input stream as standard input.
@@ -120,6 +143,9 @@ class Interpreter:
         # Check for mypy that program is not None
         if self.current_program is None:
             return
+
+        # Load builtins
+        self.initialize_builtins()
 
         # First we have to fill our tables with all classes
         for ast_class in self.current_program.classes:
@@ -143,6 +169,12 @@ class Interpreter:
         # Create first instance
         main_cls_def = self.class_table["Main"]
         main_inst = SolInst(sol_class=main_cls_def)
+
+        # Defensive programming, mypy is tough
+        if main_cls_def.ast_node is None:
+            raise InterpreterError(
+                error_code=ErrorCode.SEM_ERROR, message="Class Main doesn't have AST node"
+            )
 
         # Find run method in Main class
         run_method_node = None
@@ -210,9 +242,31 @@ class Interpreter:
         # Literal (integer, string, nil, true, false)
         if expr_node.literal is not None:
             literal_value = expr_node.literal.value
-            logger.info(f"Processing literal value {literal_value}")
-            #### todooo
-            return SolInst(sol_class=self.class_table["Main"])
+            literal_class = expr_node.literal.class_id
+            logger.info(f"Processing literal: class '{literal_class}', value '{literal_value}'")
+
+            # Extra check if the class exists in table
+            if literal_class not in self.class_table:
+                raise InterpreterError(
+                    error_code=ErrorCode.SEM_ERROR,
+                    message=f"Unknown builtin class {literal_class}",
+                )
+
+            sol_class = self.class_table[literal_class]
+
+            # Convert values from XML to real values
+            real_val: int | str | bool | None = None
+
+            if literal_class == "Integer":
+                real_val = int(literal_value)
+            elif literal_class == "String":
+                real_val = str(literal_value)
+            elif literal_class == "True" or literal_class == "False":
+                real_val = bool(literal_value)
+            elif literal_class == "Nil":
+                real_val = None
+
+            return SolInst(sol_class=sol_class, val=real_val)
 
         # Send
         if expr_node.send is not None:
