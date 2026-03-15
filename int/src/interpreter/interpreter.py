@@ -8,6 +8,7 @@ Author: Patrik Lošťák <xlostap00>
 """
 
 import logging
+import operator
 from pathlib import Path
 from typing import TextIO
 
@@ -186,7 +187,7 @@ class Interpreter:
         # Check for mypy but run should be checked already (defensive programming ig)
         if run_method_node is None:
             raise InterpreterError(
-                error_code=ErrorCode.SEM_ERROR, message="Method run or its block is missing"
+                error_code=ErrorCode.SEM_MAIN, message="Method run or its block is missing"
             )
 
         # Local frame where we save self as ptr to object on which we call the method
@@ -248,7 +249,7 @@ class Interpreter:
             # Extra check if the class exists in table
             if literal_class not in self.class_table:
                 raise InterpreterError(
-                    error_code=ErrorCode.SEM_ERROR,
+                    error_code=ErrorCode.SEM_UNDEF,
                     message=f"Unknown builtin class {literal_class}",
                 )
 
@@ -284,6 +285,83 @@ class Interpreter:
             error_code=ErrorCode.INT_STRUCTURE, message="Unknown expression type in AST"
         )
 
+    def _eval_builtin_send(
+        self, receiver: SolInst, selector: str, parsed_args: list[SolInst]
+    ) -> SolInst | None:
+        """Evaluate message as builtin method, if not builtin returns None"""
+        if receiver.sol_class.name == "Integer":
+            # always int
+            val_reciever = int(receiver.val)  # type: ignore
+
+            # Numeric operations (1 arg required)
+            # Use dict to avoid to many elifs
+            math_ops = {
+                "plus:": (operator.add, "Integer"),
+                "minus:": (operator.sub, "Integer"),
+                "multiplyBy:": (operator.mul, "Integer"),
+                "divBy:": (operator.floordiv, "Integer"),  # floordiv ret int
+                "equalTo:": (operator.eq, "Bool"),
+                "greaterThan:": (operator.gt, "Bool"),
+            }
+
+            if selector in math_ops:
+                if len(parsed_args) != 1:
+                    raise InterpreterError(
+                        error_code=ErrorCode.INT_OTHER,
+                        message=f"Message {selector} requires 1 argument",
+                    )
+
+                arg_obj = parsed_args[0]
+                if arg_obj.sol_class.name != "Integer":
+                    raise InterpreterError(
+                        error_code=ErrorCode.INT_OTHER,
+                        message=f"Argument for {selector} has to be Integer",
+                    )
+
+                val_arg = int(arg_obj.val)  # type: ignore
+
+                # These operations return int
+                if selector == "divBy:" and val_arg == 0:
+                    raise InterpreterError(
+                        error_code=ErrorCode.INT_INVALID_ARG, message="Division by zero"
+                    )
+
+                # Call proper operation and right ret type from dict
+                op_func, ret_type = math_ops[selector]
+                result = op_func(val_reciever, val_arg)
+
+                if ret_type == "Integer":
+                    return SolInst(self.class_table["Integer"], result)
+
+                # Or bool ret type
+                sol_class_name = "True" if result else "False"
+                return SolInst(self.class_table[sol_class_name], result)
+
+            # Conversions
+            if selector == "asString:":
+                if len(parsed_args) != 0:
+                    raise InterpreterError(
+                        error_code=ErrorCode.INT_OTHER,
+                        message="Message asString doesn't require argument",
+                    )
+                return SolInst(self.class_table["String"], str(val_reciever))
+
+            if selector == "asInteger:":
+                if len(parsed_args) != 0:
+                    raise InterpreterError(
+                        error_code=ErrorCode.INT_OTHER,
+                        message="Message asInteger doesn't require argument",
+                    )
+                return receiver  # returns itself
+
+            # Cycle
+            if selector == "timesRepeat":
+                logger.info(f"message timesRepeat called with number {val_reciever}")
+                ## todooooo with blocks
+                return SolInst(self.class_table["Nil"], None)
+
+        return None
+
     def eval_send(self, send_node: Send, curr_frame: LocalFrame) -> SolInst:
         """Processes sending messages"""
         selector = send_node.selector
@@ -299,5 +377,51 @@ class Interpreter:
             arg_obj = self.eval_expr(arg.expr, curr_frame)
             parsed_args.append(arg_obj)
 
-        ## todoo find and execute method on receiver
+        # Search for method in class of receiver
+        class_receiver = message_receiver.sol_class
+        found_method = None
+
+        # Parse builtin classes
+        builtin_result = self._eval_builtin_send(message_receiver, selector, parsed_args)
+        if builtin_result is not None:
+            # return the result
+            return builtin_result
+
+        # Look into user xml
+        if class_receiver.ast_node is not None:
+            for method in class_receiver.ast_node.methods:
+                if method.selector == selector:
+                    found_method = method
+                    break
+
+        if found_method is None or found_method.block is None:
+            raise InterpreterError(
+                error_code=ErrorCode.INT_DNU,
+                message=f"Receiver DNU the message (method {selector} wasn't found)",
+            )
+
+        method_block = found_method.block
+
+        # Check for num of args (arity check)
+        if len(parsed_args) != method_block.arity:
+            raise InterpreterError(
+                error_code=ErrorCode.INT_OTHER,
+                message=f"Wrong num of params for message {selector}",
+            )
+
+        # New local frame to execute method
+        method_frame = LocalFrame()
+        method_frame.vars["self"] = message_receiver
+
+        # Save names of args from xml
+        for idx in range(method_block.arity):
+            param_name = method_block.parameters[idx].name
+            method_frame.vars[param_name] = parsed_args[idx]
+
+        logger.info(f"====> Accessing the method: {class_receiver.name}>>{selector}")
+        for assign_node in method_block.assigns:
+            self.eval_assign(assign_node, method_frame)
+        logger.info(f"<==== Leaving method: {class_receiver.name}>>{selector}")
+
+        ## todoo finish
         return message_receiver
