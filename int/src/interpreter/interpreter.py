@@ -329,6 +329,7 @@ class Interpreter:
                 # Call proper operation and right ret type from dict
                 op_func, ret_type = math_ops[selector]
                 result = op_func(val_reciever, val_arg)
+                logger.info(f"Result of {val_reciever} {selector} {val_arg} is {result}")
 
                 if ret_type == "Integer":
                     return SolInst(self.class_table["Integer"], result)
@@ -362,6 +363,42 @@ class Interpreter:
 
         return None
 
+    def _eval_attr_access(
+        self, receiver: SolInst, selector: str, parsed_args: list[SolInst]
+    ) -> SolInst:
+        """Process read/write of instance attribute if method wasn't found, otherwise DNU error"""
+        # Getter (0 args and doesn't end with ':')
+        if len(parsed_args) == 0 and not selector.endswith(":"):
+            if selector in receiver.attrs:
+                logger.info(f"Reading instance attribute {selector}")
+                return receiver.attrs[selector]
+            raise InterpreterError(
+                error_code=ErrorCode.INT_DNU,
+                message=f"Receiver DNU the message {selector}",
+            )
+
+        # Setter (1 arg and ends with ':')
+        if len(parsed_args) == 1 and selector.endswith(":"):
+            attr_name = selector[:-1]  # Remove the ':' ("vysl:" --> "vysl")
+
+            # Check if instance attr collides with method
+            if receiver.sol_class.ast_node is not None:
+                for method in receiver.sol_class.ast_node.methods:
+                    if method.selector == attr_name:
+                        raise InterpreterError(
+                            ErrorCode.INT_INST_ATTR,
+                            f"Collision: Attribute {attr_name} collides with existing method",
+                        )
+            # Save value
+            logger.info(f"Writing instance attribute {attr_name}")
+            receiver.attrs[attr_name] = parsed_args[0]
+            return receiver
+
+        raise InterpreterError(
+            ErrorCode.INT_DNU,
+            f"Receiver of class {receiver.sol_class.name} DNU message {selector}",
+        )
+
     def eval_send(self, send_node: Send, curr_frame: LocalFrame) -> SolInst:
         """Processes sending messages"""
         selector = send_node.selector
@@ -394,12 +431,11 @@ class Interpreter:
                     found_method = method
                     break
 
+        # Access to instance attributes
         if found_method is None or found_method.block is None:
-            raise InterpreterError(
-                error_code=ErrorCode.INT_DNU,
-                message=f"Receiver DNU the message (method {selector} wasn't found)",
-            )
+            return self._eval_attr_access(message_receiver, selector, parsed_args)
 
+        # Execute the method from xml
         method_block = found_method.block
 
         # Check for num of args (arity check)
