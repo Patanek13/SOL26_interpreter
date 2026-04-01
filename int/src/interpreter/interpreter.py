@@ -10,7 +10,7 @@ Author: Patrik Lošťák <xlostap00>
 import logging
 import operator
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO
 
 from lxml import etree
 from lxml.etree import ParseError
@@ -38,7 +38,7 @@ class SolClass:
 class SolInst:
     """Representation of specific object in memory"""
 
-    def __init__(self, sol_class: SolClass, val: int | str | bool | None = None):
+    def __init__(self, sol_class: SolClass, val: int | str | bool | tuple[Any, Any] | None = None):
         self.sol_class = sol_class
         self.attrs: dict[str, SolInst] = {}
         self.val = val
@@ -200,7 +200,7 @@ class Interpreter:
         for assign_node in run_method_node.block.assigns:
             self.eval_assign(assign_node, curr_frame)
 
-    def eval_assign(self, assign_node: Assign, curr_frame: LocalFrame) -> None:
+    def eval_assign(self, assign_node: Assign, curr_frame: LocalFrame) -> SolInst:
         """Evaluates assign cmd and saves result into current frame"""
 
         # Evaluate the expr (right side)
@@ -215,6 +215,8 @@ class Interpreter:
         else:
             curr_frame.vars[var_name] = final_result
             logger.info(f"Assign: Saved object into {var_name}")
+
+        return final_result  # Every assign returns the last assigned value
 
     def eval_expr(self, expr_node: Expr, curr_frame: LocalFrame) -> SolInst:
         """Evaluates any expression (var, literal, block, send) and returns final object"""
@@ -271,97 +273,350 @@ class Interpreter:
 
         # Send
         if expr_node.send is not None:
-            logger.info("SEND: executing")
+            logger.info("SEND: executing...")
             # Process the message
             return self.eval_send(expr_node.send, curr_frame)
 
         if expr_node.block is not None:
-            logger.info("BLOCK: not working yet")
-            ### todooo
-            return SolInst(sol_class=self.class_table["Main"])
+            logger.info("BLOCK: accessing...")
+            # Save block AST node and current frame
+            block_data = (expr_node.block, curr_frame)
+            return SolInst(sol_class=self.class_table["Block"], val=block_data)
 
         # Extra check but shouldn't get here, we have validator
         raise InterpreterError(
             error_code=ErrorCode.INT_STRUCTURE, message="Unknown expression type in AST"
         )
 
+    def _builtin_integer(
+        self, receiver: SolInst, selector: str, parsed_args: list[SolInst]
+    ) -> SolInst | None:
+        "Integer class methods"
+        # always int
+        val_receiver = int(receiver.val)  # type: ignore
+
+        # Numeric operations (1 arg required)
+        # Use dict to avoid to many elifs
+        math_ops = {
+            "plus:": (operator.add, "Integer"),
+            "minus:": (operator.sub, "Integer"),
+            "multiplyBy:": (operator.mul, "Integer"),
+            "divBy:": (operator.floordiv, "Integer"),  # floordiv ret int
+            "equalTo:": (operator.eq, "Bool"),
+            "greaterThan:": (operator.gt, "Bool"),
+        }
+
+        if selector in math_ops:
+            if len(parsed_args) != 1:
+                raise InterpreterError(
+                    error_code=ErrorCode.INT_OTHER,
+                    message=f"Message {selector} requires 1 argument",
+                )
+
+            arg_obj = parsed_args[0]
+            if arg_obj.sol_class.name != "Integer":
+                raise InterpreterError(
+                    error_code=ErrorCode.INT_OTHER,
+                    message=f"Argument for {selector} has to be Integer",
+                )
+
+            val_arg = int(arg_obj.val)  # type: ignore
+
+            # These operations return int
+            if selector == "divBy:" and val_arg == 0:
+                raise InterpreterError(ErrorCode.INT_INVALID_ARG, "Division by zero")
+
+            # Call proper operation and right ret type from dict
+            op_func, ret_type = math_ops[selector]
+            result = op_func(val_receiver, val_arg)
+            logger.info(f"Result of {val_receiver} {selector} {val_arg} is {result}")
+
+            if ret_type == "Integer":
+                return SolInst(self.class_table["Integer"], result)
+
+            # Or bool ret type
+            sol_class_name = "True" if result else "False"
+            return SolInst(self.class_table[sol_class_name], result)
+
+        if selector == "isNumber":
+            return SolInst(self.class_table["True"], True)
+        if (selector == "asString" or selector == "asInteger") and len(parsed_args) != 0:
+            raise InterpreterError(
+                ErrorCode.INT_OTHER, f"Message {selector} doesn't require and argument"
+            )
+        if selector == "asString":
+            return SolInst(self.class_table["String"], str(val_receiver))
+        if selector == "asInteger":
+            return receiver  # returns itself
+
+        # Cycle
+        if selector == "timesRepeat:":
+            logger.info(f"message timesRepeat: called with number {val_receiver}")
+            if len(parsed_args) != 1:
+                raise InterpreterError(
+                    ErrorCode.INT_OTHER, "Message 'timesRepeat:' requires 1 argument"
+                )
+
+            block_arg = parsed_args[0]
+            # If 0 block won't be executed and returns Nil
+            if val_receiver <= 0:
+                return SolInst(self.class_table["Nil"], None)
+
+            last_result = SolInst(self.class_table["Nil"], None)
+
+            # Run block n-times
+            for n in range(1, val_receiver + 1):
+                # Create new object Integer representing number of current iteration
+                iter_obj = SolInst(self.class_table["Integer"], n)
+
+                # Send block a message with number of iteration and call builtin block
+                result = self._eval_builtin_send(block_arg, "value:", [iter_obj])
+
+                # If arg is not object and DNU message "value:" --> INT.DNU
+                if result is None:
+                    raise InterpreterError(
+                        ErrorCode.INT_DNU, "Argument for 'timesRepeat' DNU the message 'value:'"
+                    )
+
+                last_result = result
+
+            return last_result
+        return None
+
+    def _builtin_string(
+        self, receiver: SolInst, selector: str, parsed_args: list[SolInst]
+    ) -> SolInst | None:
+        """String class methods"""
+        val_str = str(receiver.val)
+
+        # Prints string to stdout without format chars
+        if selector == "print":
+            # daaat pryyc
+            print(f"[Interpret prints]: >>>{val_str}<<<")
+            print(val_str, end="")
+            return receiver
+        # asString returns itself
+        if selector == "asString":
+            return receiver
+        if selector == "isString":
+            return SolInst(self.class_table["True"], True)
+        # length returns INT of chars (1 esc seq = 1 char)
+        if selector == "length":
+            return SolInst(self.class_table["Integer"], len(val_str))
+        # asInteger returns INT if can be converted, otherwise Nil
+        if selector == "asInteger":
+            try:
+                return SolInst(self.class_table["Integer"], int(val_str))
+            except ValueError:
+                return SolInst(self.class_table["Nil"], None)
+        if selector == "equalTo:":
+            # Return false if comparsion does't make sense
+            if len(parsed_args) != 1 or parsed_args[0].sol_class.name != "String":
+                return SolInst(self.class_table["False"], False)
+            is_eq = val_str == str(parsed_args[0].val)
+            return SolInst(self.class_table["True" if is_eq else "False"], is_eq)
+        # concatenateWith returns Nil if arg is not String otherwise returns joined String
+        if selector == "concatenateWith:":
+            if len(parsed_args) != 1 or parsed_args[0].sol_class.name != "String":
+                return SolInst(self.class_table["Nil"], None)
+            return SolInst(self.class_table["String"], val_str + str(parsed_args[0].val))
+        # startsWith:endsBefore: indexes from 1, bad args -> nil, args diff <= 0 -> ""
+        if selector == "startsWith:endsBefore:":
+            return self._string_helper(val_str, parsed_args)
+
+        return None
+
+    def _string_helper(self, val_str: str, parsed_args: list[SolInst]) -> SolInst:
+        """Helper function for startsWith:endsBefore at String class"""
+        if len(parsed_args) != 2:
+            raise InterpreterError(
+                ErrorCode.INT_OTHER, "startsWith:endsBefore: requires 2 arguments"
+            )
+        # Checks for arguments
+        arg1, arg2 = parsed_args[0], parsed_args[1]
+        if arg1.sol_class.name != "Integer" or arg2.sol_class.name != "Integer":
+            return SolInst(self.class_table["Nil"], None)
+        start, end = int(arg1.val), int(arg2.val)  # type: ignore
+        if start <= 0 or end <= 0:
+            return SolInst(self.class_table["Nil"], None)
+        # args difference <= 0 returns ""
+        if (end - start) <= 0:
+            return SolInst(self.class_table["String"], "")
+
+        # Indexes from 1, convert it to 0 because better
+        start_idx = start - 1
+        end_idx = end - 1
+
+        final = val_str[start_idx:end_idx] if end_idx <= len(val_str) else val_str[start_idx:]
+        return SolInst(self.class_table["String"], final)
+
+    def _builtin_boolean(
+        self, receiver: SolInst, selector: str, parsed_args: list[SolInst]
+    ) -> SolInst | None:
+        """True/False class methods"""
+        is_true = receiver.sol_class.name == "True"
+
+        # Returns true/false string for true/false
+        if selector == "asString":
+            return SolInst(self.class_table["String"], "true" if is_true else "false")
+        # Returns negation of true/false
+        if selector == "not":
+            return SolInst(self.class_table["False" if is_true else "True"], not is_true)
+        # returns true
+        if selector == "isBoolean":
+            return SolInst(self.class_table["True"], True)
+
+        # Take argument as block and run it (send block message value:)
+        if selector == "ifTrue:ifFalse:":
+            if len(parsed_args) != 2:
+                raise InterpreterError(ErrorCode.INT_OTHER, "ifTrue:ifFalse: requires 2 arguments")
+            # if receiver is "true" the first arg is evaluated (send message value: ),
+            # if receiver is "false" the second arg is evaluated (send message value: )
+            target_block = parsed_args[0] if is_true else parsed_args[1]
+            return self._eval_builtin_send(target_block, "value", [])
+
+        if selector == "and:":
+            if not is_true:
+                return receiver  # if false returns false, if true send message value:
+            return self._eval_builtin_send(parsed_args[0], "value", [])
+
+        if selector == "or:":
+            if is_true:
+                return receiver  # If true returns true, otherwise send message value:
+            return self._eval_builtin_send(parsed_args[0], "value", [])
+
+        return None
+
+    def _builtin_nil(
+        self, receiver: SolInst, selector: str, parsed_args: list[SolInst]
+    ) -> SolInst | None:
+        """Handle nil class methods"""
+        if selector == "isNil":
+            return SolInst(self.class_table["True"], True)
+        if selector == "asString":
+            return SolInst(self.class_table["String"], "nil")
+        return None
+
+    def _builtin_block(
+        self, receiver: SolInst, selector: str, parsed_args: list[SolInst]
+    ) -> SolInst | None:
+        """Methods for code blocks"""
+        if selector == "isBlock":
+            return SolInst(self.class_table["True"], True)
+
+        block_val = receiver.val
+        if selector.startswith("value"):
+            # Look into the block and its env (closer)
+            if not isinstance(block_val, tuple):
+                raise InterpreterError(ErrorCode.INT_OTHER, "Block is corrupted")
+
+            block_node, outer_frame = block_val
+
+            if len(parsed_args) != block_node.arity:
+                raise InterpreterError(
+                    ErrorCode.INT_OTHER,
+                    f"Block expects {block_node.arity} arguments and got {parsed_args}",
+                )
+
+            # Create frame for block that will be executed and copy vars to it
+            block_frame = LocalFrame()
+            block_frame.vars.update(outer_frame.vars)
+
+            # Save parameters of block
+            for param in range(block_node.arity):
+                param_name = block_node.parameters[param].name
+                block_frame.vars[param_name] = parsed_args[param]
+
+            # Evaluate the block content
+            last_result = SolInst(self.class_table["Nil"], None)
+            for assign_node in block_node.assigns:
+                last_result = self.eval_assign(assign_node, block_frame)
+            return last_result  # return the last value of last command
+
+        if selector == "whileTrue:":
+            if len(parsed_args) != 1:
+                raise InterpreterError(ErrorCode.INT_OTHER, "whileTrue: requires 1 argument")
+
+            block_body = parsed_args[0]
+            last_result = SolInst(self.class_table["Nil"], None)
+
+            while True:
+                # Run block from receiver (condition)
+                cond = self._eval_builtin_send(receiver, "value", [])
+                if cond is None or cond.sol_class.name != "True":
+                    break
+                # Cond is true we execute the block body
+                result = self._eval_builtin_send(block_body, "value", [])
+                if result is None:
+                    raise InterpreterError(ErrorCode.INT_DNU, "Block body DNU the message value")
+                last_result = result
+            return last_result
+        return None
+
+    def _builtin_object(
+        self, receiver: SolInst, selector: str, parsed_args: list[SolInst]
+    ) -> SolInst | None:
+        """Methods accessible to all objects"""
+        # Compares if 2 objects are identical (if same object)
+        if selector == "identicalTo:":
+            if len(parsed_args) != 1:
+                raise InterpreterError(ErrorCode.INT_OTHER, "identicalTo: requires 1 argument")
+            is_ident = receiver is parsed_args[0]
+            return SolInst(self.class_table["True" if is_ident else "False"], is_ident)
+        # Compares 2 objects based on their data, if no attributes same as identicalTo:
+        if selector == "equalTo:":
+            if len(parsed_args) != 1:
+                raise InterpreterError(ErrorCode.INT_OTHER, "equalTo: requires 1 argument")
+            if receiver.val is None and parsed_args[0].val is None:
+                is_eq = receiver is parsed_args[0]
+            else:
+                is_eq = receiver.val == parsed_args[0].val
+            return SolInst(self.class_table["True" if is_eq else "False"], is_eq)
+        # returns ''
+        if selector == "asString":
+            if len(parsed_args) != 0:
+                raise InterpreterError(
+                    ErrorCode.INT_OTHER, "asString doesn't require any arguments"
+                )
+            return SolInst(self.class_table["String"], "")
+        # returns false
+        if selector in ["isNumber", "isString", "isBlock", "isNil", "isBoolean"]:
+            if len(parsed_args) != 0:
+                raise InterpreterError(
+                    ErrorCode.INT_OTHER, f"Message {selector} doesn't require argument"
+                )
+            return SolInst(self.class_table["False"], False)
+
+        return None
+
     def _eval_builtin_send(
         self, receiver: SolInst, selector: str, parsed_args: list[SolInst]
     ) -> SolInst | None:
         """Evaluate message as builtin method, if not builtin returns None"""
-        if receiver.sol_class.name == "Integer":
-            # always int
-            val_reciever = int(receiver.val)  # type: ignore
+        class_name = receiver.sol_class.name
 
-            # Numeric operations (1 arg required)
-            # Use dict to avoid to many elifs
-            math_ops = {
-                "plus:": (operator.add, "Integer"),
-                "minus:": (operator.sub, "Integer"),
-                "multiplyBy:": (operator.mul, "Integer"),
-                "divBy:": (operator.floordiv, "Integer"),  # floordiv ret int
-                "equalTo:": (operator.eq, "Bool"),
-                "greaterThan:": (operator.gt, "Bool"),
-            }
-
-            if selector in math_ops:
-                if len(parsed_args) != 1:
-                    raise InterpreterError(
-                        error_code=ErrorCode.INT_OTHER,
-                        message=f"Message {selector} requires 1 argument",
-                    )
-
-                arg_obj = parsed_args[0]
-                if arg_obj.sol_class.name != "Integer":
-                    raise InterpreterError(
-                        error_code=ErrorCode.INT_OTHER,
-                        message=f"Argument for {selector} has to be Integer",
-                    )
-
-                val_arg = int(arg_obj.val)  # type: ignore
-
-                # These operations return int
-                if selector == "divBy:" and val_arg == 0:
-                    raise InterpreterError(
-                        error_code=ErrorCode.INT_INVALID_ARG, message="Division by zero"
-                    )
-
-                # Call proper operation and right ret type from dict
-                op_func, ret_type = math_ops[selector]
-                result = op_func(val_reciever, val_arg)
-                logger.info(f"Result of {val_reciever} {selector} {val_arg} is {result}")
-
-                if ret_type == "Integer":
-                    return SolInst(self.class_table["Integer"], result)
-
-                # Or bool ret type
-                sol_class_name = "True" if result else "False"
-                return SolInst(self.class_table[sol_class_name], result)
-
-            # Conversions
-            if selector == "asString:":
-                if len(parsed_args) != 0:
-                    raise InterpreterError(
-                        error_code=ErrorCode.INT_OTHER,
-                        message="Message asString doesn't require argument",
-                    )
-                return SolInst(self.class_table["String"], str(val_reciever))
-
-            if selector == "asInteger:":
-                if len(parsed_args) != 0:
-                    raise InterpreterError(
-                        error_code=ErrorCode.INT_OTHER,
-                        message="Message asInteger doesn't require argument",
-                    )
-                return receiver  # returns itself
-
-            # Cycle
-            if selector == "timesRepeat":
-                logger.info(f"message timesRepeat called with number {val_reciever}")
-                ## todooooo with blocks
-                return SolInst(self.class_table["Nil"], None)
-
-        return None
+        if class_name == "Integer":
+            result = self._builtin_integer(receiver, selector, parsed_args)
+            if result is not None:
+                return result
+        elif class_name == "String":
+            result = self._builtin_string(receiver, selector, parsed_args)
+            if result is not None:
+                return result
+        elif class_name in ["True", "False"]:
+            result = self._builtin_boolean(receiver, selector, parsed_args)
+            if result is not None:
+                return result
+        elif class_name == "Nil":
+            result = self._builtin_nil(receiver, selector, parsed_args)
+            if result is not None:
+                return result
+        elif class_name == "Block":
+            result = self._builtin_block(receiver, selector, parsed_args)
+            if result is not None:
+                return result
+        # All objects including Main goes into object
+        return self._builtin_object(receiver, selector, parsed_args)
 
     def _eval_attr_access(
         self, receiver: SolInst, selector: str, parsed_args: list[SolInst]
