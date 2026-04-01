@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<program language="SOL26" description="Příjemcem je self/super">
+  <class name="B" parent="A">
+    <method selector="sus">
+      <block arity="0">
+        <assign order="1">
+          <var name="_"/>
+          <expr>
+            <literal class="String" value="hello"/>
+          </expr>
+        </assign>
+      </block>
+    </method>
+    <method selector="bar:">
+      <block arity="1">
+        <parameter order="1" name="y"/>
+      </block>
+    </method>
+    <method selector="fun">
+      <block arity="0">
+        <assign order="1">
+          <var name="_"/>
+          <expr>
+            <send selector="bar:">
+              <expr>
+                <var name="self"/>
+              </expr>
+              <arg order="1">
+                <expr>
+                  <literal class="Integer" value="1"/>
+                </expr>
+              </arg>
+            </send>
+          </expr>
+        </assign>
+        <assign order="2">
+          <var name="_"/>
+          <expr>
+            <send selector="wee:">
+              <expr>
+                <var name="self"/>
+              </expr>
+              <arg order="1">
+                <expr>
+                  <literal class="Integer" value="3"/>
+                </expr>
+              </arg>
+            </send>
+          </expr>
+        </assign>
+        <assign order="3">
+          <var name="_"/>
+          <expr>
+            <send selector="gro:">
+              <expr>
+                <var name="self"/>
+              </expr>
+              <arg order="1">
+                <expr>
+                  <literal class="Integer" value="5"/>
+                </expr>
+              </arg>
+            </send>
+          </expr>
+        </assign>
+        <assign order="4">
+          <var name="_"/>
+          <expr>
+            <send selector="foo:">
+              <expr>
+                <var name="self"/>
+              </expr>
+              <arg order="1">
+                <expr>
+                  <literal class="Integer" value="8"/>
+                </expr>
+              </arg>
+            </send>
+          </expr>
+        </assign>
+        <assign order="5">
+          <var name="_"/>
+          <expr>
+            <send selector="foo">
+              <expr>
+                <var name="self"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="6">
+          <var name="a"/>
+          <expr>
+            <send selector="sus">
+              <expr>
+                <var name="self"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="7">
+          <var name="b"/>
+          <expr>
+            <send selector="sus">
+              <expr>
+                <var name="super"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+      </block>
+    </method>
+  </class>
+  <class name="A" parent="Object">
+    <method selector="foo">
+      <block arity="0">
+        <assign order="1">
+          <var name="_"/>
+          <expr>
+            <send selector="sus:">
+              <expr>
+                <var name="self"/>
+              </expr>
+              <arg order="1">
+                <expr>
+                  <literal class="Integer" value="1234"/>
+                </expr>
+              </arg>
+            </send>
+          </expr>
+        </assign>
+        <assign order="2">
+          <var name="a"/>
+          <expr>
+            <send selector="gro">
+              <expr>
+                <var name="self"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="3">
+          <var name="b"/>
+          <expr>
+            <send selector="sus">
+              <expr>
+                <var name="self"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+      </block>
+    </method>
+    <method selector="bar:">
+      <block arity="1">
+        <parameter order="1" name="x"/>
+      </block>
+    </method>
+    <method selector="wee:">
+      <block arity="1">
+        <parameter order="1" name="z"/>
+      </block>
+    </method>
+  </class>
+</program>

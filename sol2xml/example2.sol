@@ -1,0 +1,21 @@
+class A : Object {
+  foo [|]
+  bar: [ :x | ]
+}
+
+class Main : Object {
+  run [|
+    "Bezparametrické selektory"
+    o := A new. "vytvoří instanci A"
+    _ := o foo. "metoda se najde v třídě A"
+    _ := o asString. "metoda se najde v třídě Object"
+    _ := o bad. "metoda se nenajde v A ani v Object, neexistuje atribut 'bad' -> CHYBA 51"
+
+    "Jednoparametrické selektory"
+    _ := o bar: 1. "metoda se najde v třídě A"
+    _ := o equalTo: 1. "metoda se najde v třídě Object"
+    _ := o goo: 1. "metoda 'goo:' se nenajde v A ani v Object, na instanci se vytvoří atribut 'goo'"
+    _ := o asString: 123. "metoda 'asString:' se nenajde v A ani v Object, ale atribut nelze vytvořit, protože existuje metoda 'asString'
+                              -> CHYBA 54"
+  ]
+}

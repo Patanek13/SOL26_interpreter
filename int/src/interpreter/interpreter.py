@@ -96,7 +96,7 @@ class Interpreter:
         for cls in self.current_program.classes:
             if cls.name == "Main":
                 main_class = cls
-            break
+                break
 
         # Throw an error if the Main class is missing
         if main_class is None:
@@ -108,7 +108,7 @@ class Interpreter:
         for method in main_class.methods:
             if method.selector == "run":
                 run_method = method
-            break
+                break
 
         if run_method is None:
             raise InterpreterError(
@@ -247,6 +247,16 @@ class Interpreter:
             literal_value = expr_node.literal.value
             literal_class = expr_node.literal.class_id
             logger.info(f"Processing literal: class '{literal_class}', value '{literal_value}'")
+
+            # Class literals
+            if literal_class == "class":
+                class_name = str(literal_value)
+                if class_name not in self.class_table:
+                    raise InterpreterError(
+                        error_code=ErrorCode.SEM_UNDEF,
+                        message=f"Unknown class {class_name} in class literal",
+                    )
+                return SolInst(sol_class=self.class_table[class_name], val="CLASS_REF")
 
             # Extra check if the class exists in table
             if literal_class not in self.class_table:
@@ -672,6 +682,16 @@ class Interpreter:
         # Search for method in class of receiver
         class_receiver = message_receiver.sol_class
         found_method = None
+
+        # Class messages
+        if message_receiver.val == "CLASS_REF" and selector == "new":
+            # Create new instance of the class
+            if len(parsed_args) != 0:
+                raise InterpreterError(
+                    ErrorCode.INT_OTHER, "Message new doesn't require any arguments"
+                )
+            logger.info(f"Creating new instance of class {class_receiver.name}")
+            return SolInst(sol_class=class_receiver)
 
         # Parse builtin classes
         builtin_result = self._eval_builtin_send(message_receiver, selector, parsed_args)
