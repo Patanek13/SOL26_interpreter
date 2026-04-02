@@ -9,6 +9,7 @@ Author: Patrik Lošťák <xlostap00>
 
 import logging
 import operator
+import sys
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -324,7 +325,7 @@ class Interpreter:
                 )
 
             arg_obj = parsed_args[0]
-            if arg_obj.sol_class.name != "Integer":
+            if self._get_boss_cls_name(arg_obj.sol_class) != "Integer":
                 raise InterpreterError(
                     error_code=ErrorCode.INT_OTHER,
                     message=f"Argument for {selector} has to be Integer",
@@ -603,7 +604,7 @@ class Interpreter:
         self, receiver: SolInst, selector: str, parsed_args: list[SolInst]
     ) -> SolInst | None:
         """Evaluate message as builtin method, if not builtin returns None"""
-        class_name = receiver.sol_class.name
+        class_name = self._get_boss_cls_name(receiver.sol_class)
 
         if class_name == "Integer":
             result = self._builtin_integer(receiver, selector, parsed_args)
@@ -664,6 +665,102 @@ class Interpreter:
             f"Receiver of class {receiver.sol_class.name} DNU message {selector}",
         )
 
+    def _get_boss_cls_name(self, start_cls: SolClass) -> str:
+        """Helper function to get the name of the boss class (the one without parent)
+        for given class
+        """
+        curr_cls: SolClass | None = start_cls
+        while curr_cls is not None:
+            if curr_cls.name in ["Object", "Integer", "String", "Nil", "True", "False", "Block"]:
+                return curr_cls.name
+            curr_cls = self.class_table.get(curr_cls.parent_name) if curr_cls.parent_name else None
+        return "Object"  # Default boss class if no parent found, should not happen
+
+    def _cls_msg_new(
+        self, class_receiver: SolClass, receiver_boss: str, parsed_args: list[SolInst]
+    ) -> SolInst:
+        """Helper function to process message 'new'"""
+        if len(parsed_args) != 0:
+            raise InterpreterError(
+                ErrorCode.INT_OTHER, "Message 'new' doesn't require any arguments"
+            )
+        # Create new instance of class_receiver
+        new_inst = SolInst(sol_class=class_receiver)
+        # Initialize instance attributes with default values
+        if receiver_boss == "Integer":
+            new_inst.val = 0
+        elif receiver_boss == "String":
+            new_inst.val = ""
+        elif receiver_boss == "Nil":
+            new_inst.val = None
+        elif receiver_boss == "True":
+            new_inst.val = True
+        elif receiver_boss == "False":
+            new_inst.val = False
+
+        return new_inst
+
+    def _cls_msg_from(
+        self, class_receiver: SolClass, receiver_boss: str, parsed_args: list[SolInst]
+    ) -> SolInst:
+        """Helper function to process message 'from:' for classes"""
+        if len(parsed_args) != 1:
+            raise InterpreterError(ErrorCode.INT_OTHER, "Message 'from:' requires 1 argument")
+        arg = parsed_args[0]
+        arg_boss = self._get_boss_cls_name(arg.sol_class)
+        # Check if argument is compatible with receiver class
+        if receiver_boss != "Object" and arg_boss != receiver_boss:
+            raise InterpreterError(
+                ErrorCode.INT_INVALID_ARG,
+                f"Class expects internal attribute of type {receiver_boss} but got {arg_boss}",
+            )
+        # Create new instance of class_receiver with value from argument
+        new_inst = SolInst(sol_class=class_receiver)
+        new_inst.val = arg.val
+        new_inst.attrs = arg.attrs.copy()  # Copy attributes from argument
+
+        return new_inst
+
+    def _cls_msg_read(
+        self, class_receiver: SolClass, receiver_boss: str, parsed_args: list[SolInst]
+    ) -> SolInst:
+        """Helper function to process message 'read' for classes"""
+        if receiver_boss != "String":
+            raise InterpreterError(
+                ErrorCode.INT_DNU,
+                f"Message 'read' is only valid for class String but got {receiver_boss}",
+            )
+        if len(parsed_args) != 0:
+            raise InterpreterError(
+                ErrorCode.INT_OTHER, "Message 'read' doesn't require any arguments"
+            )
+        # Read line from input and create new instance of String with it
+        input_line = sys.stdin.readline()
+        if input_line.endswith("\n"):
+            input_line = input_line[:-1]  # Remove trailing newline
+        if input_line.endswith("\r"):
+            input_line = input_line[:-1]  # Remove trailing carriage return (for Windows)
+
+        return SolInst(self.class_table["String"], input_line)
+
+    def _eval_cls_msg(
+        self, class_receiver: SolClass, selector: str, parsed_args: list[SolInst]
+    ) -> SolInst:
+        """Main function to process messages that are sent to classes ('new','from:','read')"""
+        receiver_boss = self._get_boss_cls_name(class_receiver)
+
+        if selector == "new":
+            return self._cls_msg_new(class_receiver, receiver_boss, parsed_args)
+        if selector == "from:":
+            return self._cls_msg_from(class_receiver, receiver_boss, parsed_args)
+        if selector == "read":
+            return self._cls_msg_read(class_receiver, receiver_boss, parsed_args)
+
+        raise InterpreterError(
+            ErrorCode.INT_DNU,
+            f"Class {class_receiver.name} DNU the message {selector}",
+        )
+
     def eval_send(self, send_node: Send, curr_frame: LocalFrame) -> SolInst:
         """Processes sending messages"""
         selector = send_node.selector
@@ -684,14 +781,8 @@ class Interpreter:
         found_method = None
 
         # Class messages
-        if message_receiver.val == "CLASS_REF" and selector == "new":
-            # Create new instance of the class
-            if len(parsed_args) != 0:
-                raise InterpreterError(
-                    ErrorCode.INT_OTHER, "Message new doesn't require any arguments"
-                )
-            logger.info(f"Creating new instance of class {class_receiver.name}")
-            return SolInst(sol_class=class_receiver)
+        if message_receiver.val == "CLASS_REF":
+            return self._eval_cls_msg(class_receiver, selector, parsed_args)
 
         # Parse builtin classes
         builtin_result = self._eval_builtin_send(message_receiver, selector, parsed_args)
