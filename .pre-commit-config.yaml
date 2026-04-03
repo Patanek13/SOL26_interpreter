@@ -25,3 +25,18 @@ repos:
           "pydantic-xml[lxml]~=2.19.0",
           "types-lxml>=2026.2.16",
         ]
+  - repo: local
+    hooks:
+      - id: format
+        name: Prettier (Format)
+        entry: npm run format
+        language: system
+        types_or: [javascript, jsx, ts, tsx, json]
+        pass_filenames: false
+
+      - id: lint
+        name: ESLint (Linting)
+        entry: npm run lint
+        language: system
+        types_or: [javascript, jsx, ts, tsx]
+        pass_filenames: false
