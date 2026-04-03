@@ -334,8 +334,12 @@ class Interpreter:
         self, receiver: SolInst, selector: str, parsed_args: list[SolInst]
     ) -> SolInst | None:
         "Integer class methods"
-        # always int
-        val_receiver = int(receiver.val)  # type: ignore
+        # always int but extra check for mypy
+        if not isinstance(receiver.val, int):
+            raise InterpreterError(
+                ErrorCode.INT_OTHER, "Receiver of Integer method doesn't have int value"
+            )
+        val_receiver = int(receiver.val)
 
         # Numeric operations (1 arg required)
         # Use dict to avoid to many elifs
@@ -361,8 +365,13 @@ class Interpreter:
                     error_code=ErrorCode.INT_INVALID_ARG,
                     message=f"Argument for {selector} has to be Integer",
                 )
-
-            val_arg = int(arg_obj.val)  # type: ignore
+            # Extra check for mypy
+            if not isinstance(arg_obj.val, int):
+                raise InterpreterError(
+                    error_code=ErrorCode.INT_OTHER,
+                    message=f"Argument for {selector} doesn't have int value",
+                )
+            val_arg = int(arg_obj.val)
 
             # These operations return int
             if selector == "divBy:" and val_arg == 0:
@@ -393,37 +402,42 @@ class Interpreter:
 
         # Cycle
         if selector == "timesRepeat:":
-            logger.info(f"message timesRepeat: called with number {val_receiver}")
-            if len(parsed_args) != 1:
+            return self._times_repeat_helper(val_receiver, parsed_args)
+
+        return None
+
+    def _times_repeat_helper(self, val_receiver: int, parsed_args: list[SolInst]) -> SolInst:
+        """Helper function for timesRepeat: message at Integer class, hate rule C901"""
+        logger.info(f"message timesRepeat: called with number {val_receiver}")
+        if len(parsed_args) != 1:
+            raise InterpreterError(
+                ErrorCode.INT_OTHER, "Message 'timesRepeat:' requires 1 argument"
+            )
+
+        block_arg = parsed_args[0]
+        # If 0 block won't be executed and returns Nil
+        if val_receiver <= 0:
+            return SolInst(self.class_table["Nil"], None)
+
+        last_result = SolInst(self.class_table["Nil"], None)
+
+        # Run block n-times
+        for n in range(1, val_receiver + 1):
+            # Create new object Integer representing number of current iteration
+            iter_obj = SolInst(self.class_table["Integer"], n)
+
+            # Send block a message with number of iteration and call builtin block
+            result = self._eval_builtin_send(block_arg, "value:", [iter_obj])
+
+            # If arg is not object and DNU message "value:" --> INT.DNU
+            if result is None:
                 raise InterpreterError(
-                    ErrorCode.INT_OTHER, "Message 'timesRepeat:' requires 1 argument"
+                    ErrorCode.INT_DNU, "Argument for 'timesRepeat' DNU the message 'value:'"
                 )
 
-            block_arg = parsed_args[0]
-            # If 0 block won't be executed and returns Nil
-            if val_receiver <= 0:
-                return SolInst(self.class_table["Nil"], None)
+            last_result = result
 
-            last_result = SolInst(self.class_table["Nil"], None)
-
-            # Run block n-times
-            for n in range(1, val_receiver + 1):
-                # Create new object Integer representing number of current iteration
-                iter_obj = SolInst(self.class_table["Integer"], n)
-
-                # Send block a message with number of iteration and call builtin block
-                result = self._eval_builtin_send(block_arg, "value:", [iter_obj])
-
-                # If arg is not object and DNU message "value:" --> INT.DNU
-                if result is None:
-                    raise InterpreterError(
-                        ErrorCode.INT_DNU, "Argument for 'timesRepeat' DNU the message 'value:'"
-                    )
-
-                last_result = result
-
-            return last_result
-        return None
+        return last_result
 
     def _builtin_string(
         self, receiver: SolInst, selector: str, parsed_args: list[SolInst]
@@ -477,7 +491,13 @@ class Interpreter:
         arg1, arg2 = parsed_args[0], parsed_args[1]
         if arg1.sol_class.name != "Integer" or arg2.sol_class.name != "Integer":
             return SolInst(self.class_table["Nil"], None)
-        start, end = int(arg1.val), int(arg2.val)  # type: ignore
+        # Extra check for mypy
+        if not isinstance(arg1.val, int) or not isinstance(arg2.val, int):
+            raise InterpreterError(
+                error_code=ErrorCode.INT_OTHER,
+                message="Arguments for startsWith:endsBefore: must have int values",
+            )
+        start, end = int(arg1.val), int(arg2.val)
         if start <= 0 or end <= 0:
             return SolInst(self.class_table["Nil"], None)
         # args difference <= 0 returns ""
