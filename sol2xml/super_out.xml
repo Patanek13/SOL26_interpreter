@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<program language="SOL26" description="B dědí z A, redefinuje metodu m">
+  <class name="A" parent="Object">
+    <method selector="m:">
+      <block arity="1">
+        <parameter order="1" name="x"/>
+        <assign order="1">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <var name="x"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+      </block>
+    </method>
+    <method selector="r">
+      <block arity="0">
+        <assign order="1">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <var name="self"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+      </block>
+    </method>
+  </class>
+  <class name="B" parent="A">
+    <method selector="m:">
+      <block arity="1">
+        <parameter order="1" name="x"/>
+        <assign order="1">
+          <var name="_"/>
+          <expr>
+            <send selector="m:">
+              <expr>
+                <var name="super"/>
+              </expr>
+              <arg order="1">
+                <expr>
+                  <literal class="String" value="ahoj"/>
+                </expr>
+              </arg>
+            </send>
+          </expr>
+        </assign>
+        <assign order="2">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <var name="x"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+      </block>
+    </method>
+  </class>
+  <class name="C" parent="B">
+    <method selector="u">
+      <block arity="0">
+        <assign order="1">
+          <var name="_"/>
+          <expr>
+            <send selector="m:">
+              <expr>
+                <var name="self"/>
+              </expr>
+              <arg order="1">
+                <expr>
+                  <var name="super"/>
+                </expr>
+              </arg>
+            </send>
+          </expr>
+        </assign>
+      </block>
+    </method>
+    <method selector="print">
+      <block arity="0">
+        <assign order="1">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <literal class="String" value="bar"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+      </block>
+    </method>
+  </class>
+  <class name="Main" parent="Object">
+    <method selector="run">
+      <block arity="0">
+        <assign order="1">
+          <var name="c"/>
+          <expr>
+            <send selector="new">
+              <expr>
+                <literal class="class" value="C"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="2">
+          <var name="_"/>
+          <expr>
+            <send selector="m:">
+              <expr>
+                <var name="c"/>
+              </expr>
+              <arg order="1">
+                <expr>
+                  <literal class="String" value="foo"/>
+                </expr>
+              </arg>
+            </send>
+          </expr>
+        </assign>
+        <assign order="3">
+          <var name="_"/>
+          <expr>
+            <send selector="u">
+              <expr>
+                <var name="c"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="4">
+          <var name="_"/>
+          <expr>
+            <send selector="r">
+              <expr>
+                <var name="c"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+      </block>
+    </method>
+  </class>
+</program>

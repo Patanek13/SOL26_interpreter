@@ -1,0 +1,19 @@
+class Main : Object {
+run [|
+a := A new.
+"Instance bloku si zapamatuje, že self odkazuje na tuto instanci Main. Blok
+navíc tuto referenci na konci vrací."
+b := [ :arg | y := self attr: arg. z := self. ].
+"Zavoláme metodu 'foo' na instanci A a předáme jí objekt 'b' typu Block."
+c := a foo: b.
+"Výsledkem přiřazeným do c je instance třídy Main s instančním atributem
+attr inicializovaným na 'foo' - můžeme vypsat."
+_ := (self attr) print.
+]
+}
+class A : Object {
+foo: [ :x |
+"Blok předaný v x je vyhodnocen a do instance Main je jím vytvořen instanční
+atribut attr s hodnotou 'foo'."
+u := x value: 'foo'. ]
+}

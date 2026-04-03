@@ -1,0 +1,32 @@
+class A : Object {
+m: [ :x | _ := x print. ]
+r [ | _ := self print. ]
+}
+class B : A { "B dědí z A, redefinuje metodu m"
+m: [ :x | _ := super m: 'ahoj'. "super -> použije se implementace z A"
+_ := x print. ]
+}
+class C : B {
+"self m najde metodu m z nadtřídy B a pošle jí jako argument instanci C (na
+místě argumentu má super stejný význam jako self)."
+u [ | _ := self m: super. ]
+print [ | _ := 'bar' print. ]
+}
+class Main : Object {
+run [ | c := C new. "Vytvoří instanci c třídy C."
+"Této instanci pošle zprávu m -> implementace se najde v B. m (z B)
+nejprve zavolá implementaci z A, což vypíše 'ahoj'. Pak m (z B)
+zavolá na argumentu print, takže se vypíše 'foo'."
+_ := c m: 'foo'.
+"Instanci c se pošle zpráva u, odpovídající metoda zavolá m (najde se v
+B) s argumentem super (= self). Ta pak volá m (z A), která pošle
+svému argumentu zprávu print. Metoda pro tuto zprávu se najde v C,
+protože instance C je tím objektem, který se poslal jako argument x."
+_ := c u.
+"Instanci c pošle zprávu r. Implementace se najde v A. Tato metoda
+posílá do self zprávu print. Protože self je v tomto kontextu
+instancí C, instance použije svou metodu print (definována v C) a
+vypíše se 'bar'."
+_ := c r.
+]
+}

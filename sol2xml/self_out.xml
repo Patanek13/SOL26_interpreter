@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<program language="SOL26" description="Instance bloku si zapamatuje, že self odkazuje na tuto instanci Main. Blok&#10;navíc tuto referenci na konci vrací.">
+  <class name="Main" parent="Object">
+    <method selector="run">
+      <block arity="0">
+        <assign order="1">
+          <var name="a"/>
+          <expr>
+            <send selector="new">
+              <expr>
+                <literal class="class" value="A"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="2">
+          <var name="b"/>
+          <expr>
+            <block arity="1">
+              <parameter order="1" name="arg"/>
+              <assign order="1">
+                <var name="y"/>
+                <expr>
+                  <send selector="attr:">
+                    <expr>
+                      <var name="self"/>
+                    </expr>
+                    <arg order="1">
+                      <expr>
+                        <var name="arg"/>
+                      </expr>
+                    </arg>
+                  </send>
+                </expr>
+              </assign>
+              <assign order="2">
+                <var name="z"/>
+                <expr>
+                  <var name="self"/>
+                </expr>
+              </assign>
+            </block>
+          </expr>
+        </assign>
+        <assign order="3">
+          <var name="c"/>
+          <expr>
+            <send selector="foo:">
+              <expr>
+                <var name="a"/>
+              </expr>
+              <arg order="1">
+                <expr>
+                  <var name="b"/>
+                </expr>
+              </arg>
+            </send>
+          </expr>
+        </assign>
+        <assign order="4">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <send selector="attr">
+                  <expr>
+                    <var name="self"/>
+                  </expr>
+                </send>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+      </block>
+    </method>
+  </class>
+  <class name="A" parent="Object">
+    <method selector="foo:">
+      <block arity="1">
+        <parameter order="1" name="x"/>
+        <assign order="1">
+          <var name="u"/>
+          <expr>
+            <send selector="value:">
+              <expr>
+                <var name="x"/>
+              </expr>
+              <arg order="1">
+                <expr>
+                  <literal class="String" value="foo"/>
+                </expr>
+              </arg>
+            </send>
+          </expr>
+        </assign>
+      </block>
+    </method>
+  </class>
+</program>

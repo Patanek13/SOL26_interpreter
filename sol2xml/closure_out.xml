@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<program language="SOL26" description="Načte řádek a vytvoří objekt pro číslo 1.">
+  <class name="Main" parent="Object">
+    <method selector="giveObjectWithBlock">
+      <block arity="0">
+        <assign order="1">
+          <var name="x"/>
+          <expr>
+            <send selector="asInteger">
+              <expr>
+                <send selector="read">
+                  <expr>
+                    <literal class="class" value="String"/>
+                  </expr>
+                </send>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="2">
+          <var name="b"/>
+          <expr>
+            <block arity="0">
+              <assign order="1">
+                <var name="y"/>
+                <expr>
+                  <send selector="plus:">
+                    <expr>
+                      <send selector="asInteger">
+                        <expr>
+                          <send selector="read">
+                            <expr>
+                              <literal class="class" value="String"/>
+                            </expr>
+                          </send>
+                        </expr>
+                      </send>
+                    </expr>
+                    <arg order="1">
+                      <expr>
+                        <var name="x"/>
+                      </expr>
+                    </arg>
+                  </send>
+                </expr>
+              </assign>
+            </block>
+          </expr>
+        </assign>
+        <assign order="3">
+          <var name="x"/>
+          <expr>
+            <literal class="Integer" value="7"/>
+          </expr>
+        </assign>
+        <assign order="4">
+          <var name="z"/>
+          <expr>
+            <send selector="block:">
+              <expr>
+                <send selector="new">
+                  <expr>
+                    <literal class="class" value="Object"/>
+                  </expr>
+                </send>
+              </expr>
+              <arg order="1">
+                <expr>
+                  <var name="b"/>
+                </expr>
+              </arg>
+            </send>
+          </expr>
+        </assign>
+        <assign order="5">
+          <var name="x"/>
+          <expr>
+            <literal class="Integer" value="9"/>
+          </expr>
+        </assign>
+        <assign order="6">
+          <var name="_"/>
+          <expr>
+            <var name="z"/>
+          </expr>
+        </assign>
+      </block>
+    </method>
+    <method selector="run">
+      <block arity="0">
+        <assign order="1">
+          <var name="o"/>
+          <expr>
+            <send selector="giveObjectWithBlock">
+              <expr>
+                <var name="self"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="2">
+          <var name="_"/>
+          <expr>
+            <send selector="read">
+              <expr>
+                <literal class="class" value="String"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="3">
+          <var name="r1"/>
+          <expr>
+            <send selector="value">
+              <expr>
+                <send selector="block">
+                  <expr>
+                    <var name="o"/>
+                  </expr>
+                </send>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="4">
+          <var name="r2"/>
+          <expr>
+            <send selector="value">
+              <expr>
+                <send selector="block">
+                  <expr>
+                    <var name="o"/>
+                  </expr>
+                </send>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+      </block>
+    </method>
+  </class>
+</program>
