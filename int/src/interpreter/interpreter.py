@@ -19,7 +19,7 @@ from pydantic import ValidationError
 
 from interpreter.error_codes import ErrorCode
 from interpreter.exceptions import InterpreterError
-from interpreter.input_model import Assign, ClassDef, Expr, Program, Send
+from interpreter.input_model import Assign, ClassDef, Expr, Program, Send, Var
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +48,10 @@ class SolInst:
 class LocalFrame:
     """Represents local variables for blocks or methods"""
 
-    def __init__(self) -> None:
+    def __init__(self, owner_class: SolClass | None = None) -> None:
         self.vars: dict[str, SolInst] = {}
+        self.owner_class = owner_class
+        self.params: set[str] = set()  # Set of parameter names for blocks
 
 
 class Interpreter:
@@ -153,6 +155,16 @@ class Interpreter:
         for ast_class in self.current_program.classes:
             class_name = ast_class.name
 
+            for method in ast_class.methods:
+                # Expected arity is number of ':'
+                expected_arity = method.selector.count(":")
+                if method.block is not None and method.block.arity != expected_arity:
+                    raise InterpreterError(
+                        ErrorCode.SEM_ARITY,
+                        f"Method {method.selector} in class {class_name} has arity \
+                        {method.block.arity} but expected {expected_arity}",
+                    )
+
             # Check for redefinitions
             if class_name in self.class_table:
                 raise InterpreterError(
@@ -192,7 +204,7 @@ class Interpreter:
             )
 
         # Local frame where we save self as ptr to object on which we call the method
-        curr_frame = LocalFrame()
+        curr_frame = LocalFrame(owner_class=main_cls_def)
         curr_frame.vars["self"] = main_inst
 
         logger.info("Start method Main.run")
@@ -210,6 +222,16 @@ class Interpreter:
         # Track the name of variable
         var_name = assign_node.target.name
 
+        if var_name in ["self", "super"]:
+            raise InterpreterError(
+                ErrorCode.SEM_ERROR, f"Cannot assign to reserved variable '{var_name}'"
+            )
+
+        if var_name in curr_frame.params:
+            raise InterpreterError(
+                ErrorCode.SEM_COLLISION, f"Cannot assign to parameter variable '{var_name}'"
+            )
+
         # Save result into local memory (curr_frame), we don't need to save _var
         if var_name == "_":
             logger.info("Assign: not saving result of var '_' ")
@@ -219,29 +241,38 @@ class Interpreter:
 
         return final_result  # Every assign returns the last assigned value
 
+    def _var_expr(self, var_node: Var, curr_frame: LocalFrame) -> SolInst:
+        """Helper function to evaluate variable expression, used in eval_expr"""
+        var_name = var_node.name
+        logger.info(f"Reading var {var_name}")
+        # Super is just alias for self
+        if var_name in ["self", "super"]:
+            curr_self = curr_frame.vars.get("self")
+            if curr_self:
+                return curr_self
+
+        # Local variables
+        if var_name in curr_frame.vars:
+            return curr_frame.vars[var_name]
+
+        # Instance attributes of object (self)
+        curr_self = curr_frame.vars.get("self")
+        if curr_self and var_name in curr_self.attrs:
+            return curr_self.attrs[var_name]
+
+        # Undefined variable
+        raise InterpreterError(
+            error_code=ErrorCode.SEM_UNDEF,
+            message=f"Try to read undefined variable {var_name}",
+        )
+
     def eval_expr(self, expr_node: Expr, curr_frame: LocalFrame) -> SolInst:
         """Evaluates any expression (var, literal, block, send) and returns final object"""
         logger.info("Evaluating expression")
 
         # Read variable
         if expr_node.var is not None:
-            var_name = expr_node.var.name
-            logger.info(f"Reading var {var_name}")
-
-            # Local variables
-            if var_name in curr_frame.vars:
-                return curr_frame.vars[var_name]
-
-            # Instance attributes of object (self)
-            curr_self = curr_frame.vars.get("self")
-            if curr_self and var_name in curr_self.attrs:
-                return curr_self.attrs[var_name]
-
-            # Undefined variable
-            raise InterpreterError(
-                error_code=ErrorCode.SEM_UNDEF,
-                message=f"Try to read undefined variable {var_name}",
-            )
+            return self._var_expr(expr_node.var, curr_frame)
 
         # Literal (integer, string, nil, true, false)
         if expr_node.literal is not None:
@@ -327,7 +358,7 @@ class Interpreter:
             arg_obj = parsed_args[0]
             if self._get_boss_cls_name(arg_obj.sol_class) != "Integer":
                 raise InterpreterError(
-                    error_code=ErrorCode.INT_OTHER,
+                    error_code=ErrorCode.INT_INVALID_ARG,
                     message=f"Argument for {selector} has to be Integer",
                 )
 
@@ -402,8 +433,7 @@ class Interpreter:
 
         # Prints string to stdout without format chars
         if selector == "print":
-            # daaat pryyc
-            print(f"[Interpret prints]: >>>{val_str}<<<")
+            logger.info(f"[Interpret prints]: >>>{val_str}<<<")
             print(val_str, end="")
             return receiver
         # asString returns itself
@@ -530,13 +560,14 @@ class Interpreter:
                 )
 
             # Create frame for block that will be executed and copy vars to it
-            block_frame = LocalFrame()
+            block_frame = LocalFrame(owner_class=outer_frame.owner_class)
             block_frame.vars.update(outer_frame.vars)
 
             # Save parameters of block
             for param in range(block_node.arity):
                 param_name = block_node.parameters[param].name
                 block_frame.vars[param_name] = parsed_args[param]
+                block_frame.params.add(param_name)
 
             # Evaluate the block content
             last_result = SolInst(self.class_table["Nil"], None)
@@ -727,7 +758,7 @@ class Interpreter:
         """Helper function to process message 'read' for classes"""
         if receiver_boss != "String":
             raise InterpreterError(
-                ErrorCode.INT_DNU,
+                ErrorCode.SEM_UNDEF,
                 f"Message 'read' is only valid for class String but got {receiver_boss}",
             )
         if len(parsed_args) != 0:
@@ -757,7 +788,7 @@ class Interpreter:
             return self._cls_msg_read(class_receiver, receiver_boss, parsed_args)
 
         raise InterpreterError(
-            ErrorCode.INT_DNU,
+            ErrorCode.SEM_UNDEF,
             f"Class {class_receiver.name} DNU the message {selector}",
         )
 
@@ -765,6 +796,9 @@ class Interpreter:
         """Processes sending messages"""
         selector = send_node.selector
         logger.info(f"Processing message: {selector}")
+
+        # Check if it's super send, then we have to look for method in parent cls of curr cls
+        is_super = send_node.receiver.var is not None and send_node.receiver.var.name == "super"
 
         # Who is the receiver
         message_receiver = self.eval_expr(send_node.receiver, curr_frame)
@@ -784,46 +818,69 @@ class Interpreter:
         if message_receiver.val == "CLASS_REF":
             return self._eval_cls_msg(class_receiver, selector, parsed_args)
 
+        if is_super:
+            # If it's super send we have to look for method in parent class of current class
+            if curr_frame.owner_class is None or curr_frame.owner_class.parent_name is None:
+                start_cls = None
+            else:
+                start_cls = self.class_table.get(curr_frame.owner_class.parent_name)
+        else:
+            # If it's normal send we start looking for method in class of receiver
+            start_cls = message_receiver.sol_class
+
+        found_method = None
+        method_owner_cls = None
+        curr_cls = start_cls
+
+        while curr_cls is not None:
+            if curr_cls.ast_node is not None:
+                for method in curr_cls.ast_node.methods:
+                    if method.selector == selector:
+                        found_method = method
+                        method_owner_cls = curr_cls
+                        break
+            if found_method is not None:
+                break
+            # Move to parent class if method not found in current class
+            curr_cls = self.class_table.get(curr_cls.parent_name) if curr_cls.parent_name else None
+
+        # If method in user classes found, we will execute it
+        if (
+            found_method is not None
+            and found_method.block is not None
+            and method_owner_cls is not None
+        ):
+            method_block = found_method.block
+            if len(parsed_args) != method_block.arity:
+                raise InterpreterError(
+                    ErrorCode.INT_OTHER,
+                    f"Method {selector} expects {method_block.arity}"
+                    "arguments but got {len(parsed_args)}",
+                )
+            # Create new frame for method execution and save self in it
+            method_frame = LocalFrame(owner_class=method_owner_cls)
+            method_frame.vars["self"] = message_receiver
+
+            # Save method parameters into method frame
+            for param in range(method_block.arity):
+                param_name = method_block.parameters[param].name
+                method_frame.vars[param_name] = parsed_args[param]
+                method_frame.params.add(param_name)
+
+            logger.info(f"===> Accessing method: {method_owner_cls.name}>>{selector}")
+            # If method block is empty, self is returned by default
+            last_result = message_receiver
+            for assign_node in method_block.assigns:
+                last_result = self.eval_assign(assign_node, method_frame)
+            logger.info(f"<===Leaving method: {method_owner_cls.name}>>{selector}")
+
+            return last_result  # return the last value of last command in method block
+
         # Parse builtin classes
         builtin_result = self._eval_builtin_send(message_receiver, selector, parsed_args)
         if builtin_result is not None:
             # return the result
             return builtin_result
 
-        # Look into user xml
-        if class_receiver.ast_node is not None:
-            for method in class_receiver.ast_node.methods:
-                if method.selector == selector:
-                    found_method = method
-                    break
-
-        # Access to instance attributes
-        if found_method is None or found_method.block is None:
-            return self._eval_attr_access(message_receiver, selector, parsed_args)
-
-        # Execute the method from xml
-        method_block = found_method.block
-
-        # Check for num of args (arity check)
-        if len(parsed_args) != method_block.arity:
-            raise InterpreterError(
-                error_code=ErrorCode.INT_OTHER,
-                message=f"Wrong num of params for message {selector}",
-            )
-
-        # New local frame to execute method
-        method_frame = LocalFrame()
-        method_frame.vars["self"] = message_receiver
-
-        # Save names of args from xml
-        for idx in range(method_block.arity):
-            param_name = method_block.parameters[idx].name
-            method_frame.vars[param_name] = parsed_args[idx]
-
-        logger.info(f"====> Accessing the method: {class_receiver.name}>>{selector}")
-        for assign_node in method_block.assigns:
-            self.eval_assign(assign_node, method_frame)
-        logger.info(f"<==== Leaving method: {class_receiver.name}>>{selector}")
-
-        ## todoo finish
-        return message_receiver
+        # Process it as access to instance attribute (getter/setter) if method not found
+        return self._eval_attr_access(message_receiver, selector, parsed_args)
