@@ -9,18 +9,21 @@
  *      but you are **free to modify it** in whatever way you like.
  *
  * Author: Ondřej Ondryáš <iondryas@fit.vut.cz>
+ * Author: Patrik Lošťák <xlostap00>
  *
  * AI usage notice: The author used OpenAI Codex to create the implementation of this
  *                  module based on its Python counterpart.
  */
 
 import { existsSync, lstatSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, resolve, join } from "node:path";
 import { parseArgs } from "node:util";
+import { readdir } from "node:fs/promises";
 
 import { TestReport } from "./models.js";
 
 import { pino } from "pino";
+//import test from "node:test";
 
 const logger = pino({
   transport: {
@@ -196,7 +199,39 @@ function parseArguments(): CliArguments {
   return args;
 }
 
-function main(): void {
+async function findTests(dirPath: string, recursive: boolean): Promise<string[]> {
+  /**s
+   * Recursively finds all test case files in the specified directory.
+   * @param dirPath The directory to search for test case files.
+   * @param recursive Whether to search subdirectories recursively.
+   * @returns A promise that resolves to an array of file paths for the discovered test cases.
+   */
+  const testFiles: string[] = [];
+
+  try {
+    // Read the contents of the dir
+    const entries = await readdir(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        if (recursive) {
+          // Recursively search the subdirectory
+          const subDirTests = await findTests(fullPath, recursive);
+          testFiles.push(...subDirTests);
+        }
+      } else if (entry.isFile() && entry.name.endsWith(".test")) {
+        // Found a test case file
+        testFiles.push(fullPath);
+      }
+    }
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    logger.error(`Couldn't read directory ${dirPath}: ${msg}`);
+  }
+  return testFiles;
+}
+
+async function main(): Promise<void> {
   /**
    * The main entry point for the SOL26 integration testing script.
    * It parses command-line arguments and executes the testing process.
@@ -217,11 +252,22 @@ function main(): void {
     logger.level = "info";
   }
 
-  // TODO: Your code for discovering and executing the test cases goes here.
+  logger.info(
+    `Searching for tests in directory ${args.tests_dir}, recursive=${String(args.recursive)}`
+  );
+  const testFiles = await findTests(args.tests_dir, args.recursive);
+  logger.info(`Found ${String(testFiles.length)} test case files.`);
+
+  if (testFiles.length === 0) {
+    logger.warn("No test cases found. Exiting.");
+    const emptyReport = new TestReport({ discovered_test_cases: [], unexecuted: {}, results: {} });
+    writeResult(emptyReport, args.output);
+    return;
+  }
 
   // Example of how to write the final report:
   const report = new TestReport({ discovered_test_cases: [], unexecuted: {}, results: {} });
   writeResult(report, args.output);
 }
 
-main();
+await main();

@@ -29,14 +29,14 @@ repos:
     hooks:
       - id: format
         name: Prettier (Format)
-        entry: npm run format
+        entry: npm --prefix tester run format
         language: system
         types_or: [javascript, jsx, ts, tsx, json]
         pass_filenames: false
 
       - id: lint
         name: ESLint (Linting)
-        entry: npm run lint
+        entry: npm --prefix tester run lint
         language: system
         types_or: [javascript, jsx, ts, tsx]
         pass_filenames: false
