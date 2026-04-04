@@ -360,6 +360,110 @@ async function parseTests(testFilePath: string): Promise<TestCaseDefinition | nu
     return null;
   }
 }
+// helper func to match test case against defined filters
+function matchTestCase(value: string, filters: string[] | null, regex: boolean): boolean {
+  if (filters === null || filters.length === 0) {
+    return false;
+  }
+
+  for (const filter of filters) {
+    if (regex) {
+      try {
+        const regexObj = new RegExp(filter);
+        if (regexObj.test(value)) {
+          return true;
+        }
+      } catch (error) {
+        // If the regex is invalid, skip it
+        const msg = error instanceof Error ? error.message : String(error);
+        logger.debug(`Invalid regex expression: ${filter}, error: ${msg}`);
+      }
+    } else {
+      // Literal string match
+      if (value === filter.trim()) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+// helper func to load and parse all test cases from the provided files
+async function loadAllTests(
+  testFiles: string[]
+): Promise<{ tests: TestCaseDefinition[]; unexecuted: Record<string, UnexecutedReason> }> {
+  const tests: TestCaseDefinition[] = [];
+  const unexecuted: Record<string, UnexecutedReason> = {};
+
+  for (const path of testFiles) {
+    const testCase = await parseTests(path);
+    if (testCase !== null) {
+      tests.push(testCase);
+    } else {
+      const name = path.substring(path.lastIndexOf("/") + 1, path.lastIndexOf("."));
+      unexecuted[name] = new UnexecutedReason(
+        UnexecutedReasonCode.MALFORMED_TEST_CASE_FILE,
+        "Failed to parse the test case file."
+      );
+    }
+  }
+  return { tests, unexecuted };
+}
+
+// helper func to find out if test case should be inlcuded based on the provided filters
+function isIncluded(
+  test: TestCaseDefinition,
+  args: CliArguments,
+  hasIncludeFilters: boolean
+): boolean {
+  if (!hasIncludeFilters) {
+    return true;
+  }
+
+  const matchName =
+    matchTestCase(test.name, args.include_test, args.regex_filters) ||
+    matchTestCase(test.name, args.include, args.regex_filters);
+  const matchCat =
+    matchTestCase(test.category, args.include_category, args.regex_filters) ||
+    matchTestCase(test.category, args.include, args.regex_filters);
+
+  return matchName || matchCat;
+}
+// helper func to find out if test case should be excluded based on the provided filters
+function isExcluded(test: TestCaseDefinition, args: CliArguments): boolean {
+  return (
+    matchTestCase(test.name, args.exclude_test, args.regex_filters) ||
+    matchTestCase(test.name, args.exclude, args.regex_filters) ||
+    matchTestCase(test.category, args.exclude_category, args.regex_filters) ||
+    matchTestCase(test.category, args.exclude, args.regex_filters)
+  );
+}
+
+function filterTests(
+  tests: TestCaseDefinition[],
+  args: CliArguments,
+  unexecuted: Record<string, UnexecutedReason>
+): TestCaseDefinition[] {
+  const filteredTests: TestCaseDefinition[] = [];
+  const hasIncludeFilters =
+    (args.include !== null && args.include.length > 0) ||
+    (args.include_category !== null && args.include_category.length > 0) ||
+    (args.include_test !== null && args.include_test.length > 0);
+
+  for (const test of tests) {
+    if (isIncluded(test, args, hasIncludeFilters) && !isExcluded(test, args)) {
+      filteredTests.push(test);
+    } else {
+      unexecuted[test.name] = new UnexecutedReason(
+        UnexecutedReasonCode.FILTERED_OUT,
+        "The test case was filtered out by provided filters."
+      );
+    }
+  }
+
+  return filteredTests;
+}
 
 async function main(): Promise<void> {
   /**
@@ -395,37 +499,23 @@ async function main(): Promise<void> {
     return;
   }
 
-  const testCases: TestCaseDefinition[] = [];
-  const unexecuted: Record<string, UnexecutedReason> = {};
-
-  for (const path of testFiles) {
-    const testCase = await parseTests(path);
-    if (testCase !== null) {
-      testCases.push(testCase);
-    } else {
-      const name = path.substring(path.lastIndexOf("/") + 1, path.lastIndexOf("."));
-      unexecuted[name] = new UnexecutedReason(
-        UnexecutedReasonCode.MALFORMED_TEST_CASE_FILE,
-        "Failed to parse the test case file."
-      );
-    }
-  }
-
+  const { tests: testCases, unexecuted } = await loadAllTests(testFiles);
   logger.info(`Successfully parsed ${String(testCases.length)} test cases.`);
 
-  // Filter the test cases based on the provided include and exclude
-  const filteredTests: TestCaseDefinition[] = [];
+  const filteredTests = filterTests(testCases, args, unexecuted);
+  logger.info(`After filtering, ${String(filteredTests.length)} test cases remain.`);
 
-  filteredTests.push(...testCases);
-
-  // final report:
-  const report = new TestReport({
-    discovered_test_cases: testCases,
-    unexecuted: unexecuted,
-    results: {},
-  });
-
-  writeResult(report, args.output);
+  // dry-run --> skip and write the report
+  if (args.dry_run) {
+    logger.info("Dry run enabled, skipping test execution.");
+    const report = new TestReport({
+      discovered_test_cases: testCases,
+      unexecuted: unexecuted,
+      results: null,
+    });
+    writeResult(report, args.output);
+    return;
+  }
 }
 
 await main();
