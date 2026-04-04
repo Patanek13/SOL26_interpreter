@@ -18,9 +18,15 @@
 import { existsSync, lstatSync, writeFileSync } from "node:fs";
 import { dirname, resolve, join } from "node:path";
 import { parseArgs } from "node:util";
-import { readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 
-import { TestReport } from "./models.js";
+import {
+  TestReport,
+  TestCaseDefinition,
+  TestCaseType,
+  UnexecutedReason,
+  UnexecutedReasonCode,
+} from "./models.js";
 
 import { pino } from "pino";
 //import test from "node:test";
@@ -230,6 +236,130 @@ async function findTests(dirPath: string, recursive: boolean): Promise<string[]>
   }
   return testFiles;
 }
+// The struct to hold data from test file
+interface TestData {
+  desc: string | null;
+  cat: string;
+  ptsWeight: number;
+  expParserExCodes: number[] | null;
+  expIntExCodes: number[] | null;
+  srcCodeLines: string[];
+}
+// Parse header data from test file
+function parseHeaderData(line: string, data: TestData): void {
+  if (line.startsWith("***")) {
+    data.desc = line.substring(3).trim();
+  } else if (line.startsWith("+++")) {
+    data.cat = line.substring(3).trim();
+  } else if (line.startsWith(">>>")) {
+    data.ptsWeight = Number(line.substring(3).trim());
+  } else if (line.startsWith("!C!")) {
+    if (!data.expParserExCodes) {
+      data.expParserExCodes = [];
+    }
+    data.expParserExCodes.push(Number(line.substring(3).trim()));
+  } else if (line.startsWith("!I!")) {
+    if (!data.expIntExCodes) {
+      data.expIntExCodes = [];
+    }
+    data.expIntExCodes.push(Number(line.substring(3).trim()));
+  }
+}
+// helper func to parse the test file hdr and src code
+function getHeaderAndCode(lines: string[]): TestData {
+  let isHeader = true;
+  const data: TestData = {
+    desc: null,
+    cat: "",
+    ptsWeight: 1,
+    expParserExCodes: null,
+    expIntExCodes: null,
+    srcCodeLines: [],
+  };
+
+  for (const line of lines) {
+    if (isHeader) {
+      if (line.trim() === "") {
+        isHeader = false;
+        continue;
+      }
+      parseHeaderData(line, data);
+    } else {
+      data.srcCodeLines.push(line);
+    }
+  }
+
+  return data;
+}
+// helper func to determine the test type
+function chooseTestType(
+  parserCodes: number[] | null,
+  intCodes: number[] | null,
+  testName: string
+): TestCaseType {
+  if (parserCodes !== null && intCodes === null) {
+    return TestCaseType.PARSE_ONLY;
+  } else if (parserCodes === null && intCodes !== null) {
+    return TestCaseType.EXECUTE_ONLY;
+  } else if (parserCodes !== null && intCodes !== null) {
+    return TestCaseType.COMBINED;
+  } else {
+    throw new Error(`Test type of ${testName} cannot be determined.`);
+  }
+}
+
+async function parseTests(testFilePath: string): Promise<TestCaseDefinition | null> {
+  /**
+   * Parses a test case definition from the specified file.
+   * @param testFilePath The path to the test case file.
+   * @returns A promise that resolves to a TestCaseDefinition object and null on error
+   */
+  try {
+    const fileData = await readFile(testFilePath, "utf8");
+    const lines = fileData.split(/\r?\n/);
+
+    // Remove the .test from name
+    const name = testFilePath.substring(
+      testFilePath.lastIndexOf("/") + 1,
+      testFilePath.lastIndexOf(".")
+    );
+
+    // Check for .in and .out files
+    const path = testFilePath.substring(0, testFilePath.lastIndexOf("."));
+    const stdinFile = existsSync(`${path}.in`) ? `${path}.in` : null;
+    const expOutFile = existsSync(`${path}.out`) ? `${path}.out` : null;
+
+    const headerAndCode = getHeaderAndCode(lines);
+
+    if (!headerAndCode.cat) {
+      logger.error(`Test case ${name} does not have a category specified.`);
+      return null;
+    }
+
+    const testType = chooseTestType(
+      headerAndCode.expParserExCodes,
+      headerAndCode.expIntExCodes,
+      name
+    );
+
+    return new TestCaseDefinition({
+      test_type: testType,
+      description: headerAndCode.desc,
+      category: headerAndCode.cat,
+      points: headerAndCode.ptsWeight,
+      expected_parser_exit_codes: headerAndCode.expParserExCodes,
+      expected_interpreter_exit_codes: headerAndCode.expIntExCodes,
+      name,
+      test_source_path: testFilePath,
+      stdin_file: stdinFile,
+      expected_stdout_file: expOutFile,
+    });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    logger.error(`Failed to parse test case file ${testFilePath}: ${msg}`);
+    return null;
+  }
+}
 
 async function main(): Promise<void> {
   /**
@@ -259,14 +389,42 @@ async function main(): Promise<void> {
   logger.info(`Found ${String(testFiles.length)} test case files.`);
 
   if (testFiles.length === 0) {
-    logger.warn("No test cases found. Exiting.");
+    logger.warn("No test cases found. Exiting...");
     const emptyReport = new TestReport({ discovered_test_cases: [], unexecuted: {}, results: {} });
     writeResult(emptyReport, args.output);
     return;
   }
 
-  // Example of how to write the final report:
-  const report = new TestReport({ discovered_test_cases: [], unexecuted: {}, results: {} });
+  const testCases: TestCaseDefinition[] = [];
+  const unexecuted: Record<string, UnexecutedReason> = {};
+
+  for (const path of testFiles) {
+    const testCase = await parseTests(path);
+    if (testCase !== null) {
+      testCases.push(testCase);
+    } else {
+      const name = path.substring(path.lastIndexOf("/") + 1, path.lastIndexOf("."));
+      unexecuted[name] = new UnexecutedReason(
+        UnexecutedReasonCode.MALFORMED_TEST_CASE_FILE,
+        "Failed to parse the test case file."
+      );
+    }
+  }
+
+  logger.info(`Successfully parsed ${String(testCases.length)} test cases.`);
+
+  // Filter the test cases based on the provided include and exclude
+  const filteredTests: TestCaseDefinition[] = [];
+
+  filteredTests.push(...testCases);
+
+  // final report:
+  const report = new TestReport({
+    discovered_test_cases: testCases,
+    unexecuted: unexecuted,
+    results: {},
+  });
+
   writeResult(report, args.output);
 }
 
