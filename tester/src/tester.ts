@@ -15,10 +15,19 @@
  *                  module based on its Python counterpart.
  */
 
-import { existsSync, lstatSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  writeFileSync,
+  createReadStream,
+  rmSync,
+  readFileSync,
+} from "node:fs";
 import { dirname, resolve, join } from "node:path";
 import { parseArgs } from "node:util";
 import { readdir, readFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { Buffer } from "node:buffer";
 
 import {
   TestReport,
@@ -26,9 +35,13 @@ import {
   TestCaseType,
   UnexecutedReason,
   UnexecutedReasonCode,
+  CategoryReport,
+  TestResult,
+  TestCaseReport,
 } from "./models.js";
 
 import { pino } from "pino";
+//import { exitCode } from "node:process";
 //import test from "node:test";
 
 const logger = pino({
@@ -465,6 +478,233 @@ function filterTests(
   return filteredTests;
 }
 
+interface ProccessResult {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}
+
+async function execCommand(
+  command: string,
+  args: string[],
+  stdinFile: string | null = null,
+  inputData: string | null = null,
+  cwd?: string // working directory for the process
+): Promise<ProccessResult> {
+  /**
+   * Executes a command with the specified arguments and optional standard input.
+   * @param command The command to execute (e.g., the path to the interpreter).
+   * @param args The arguments to pass to the command.
+   * @param stdinFile An optional file path to use as stdout for the command.
+   * @param inputData An optional string to use as stdin for the command. Ignored if stdinFile is provided.
+   * @param cwd The working directory to execute the command in.
+   * @returns A promise that resolves to an object containing the exit code, stdout, stderr
+   */
+  return new Promise((resolve) => {
+    const proc = spawn(command, args, { cwd: cwd, shell: true });
+
+    let stdout = "";
+    let stderr = "";
+    proc.on("error", (err) => {
+      resolve({ exitCode: -1, stdout: "", stderr: `Failed to run ${command}: ${err.message}` });
+    });
+    // Capture standard output
+    proc.stdout.on("data", (data: Buffer) => {
+      stdout += data.toString("utf-8");
+    });
+    // Capture standard error
+    proc.stderr.on("data", (data: Buffer) => {
+      stderr += data.toString("utf-8");
+    });
+
+    // Handle process exit
+    proc.on("close", (code) => {
+      resolve({ exitCode: code !== null ? code : -1, stdout, stderr });
+    });
+
+    // If a stdin file is provided, pipe it to the process
+    if (stdinFile !== null) {
+      const readStream = createReadStream(stdinFile);
+      readStream.pipe(proc.stdin);
+    } else if (inputData !== null) {
+      // If input data is provided, write it to the process's stdin
+      proc.stdin.write(inputData);
+      proc.stdin.end();
+    } else {
+      // No input, just close stdin
+      proc.stdin.end();
+    }
+  });
+}
+
+const toNull = (val: string) => (val === "" ? null : val);
+
+function getSrcCode(testPath: string): string {
+  const data = readFileSync(testPath, "utf8");
+  const lines = data.split(/\r?\n/);
+  let isHeader = true;
+  const codeLines: string[] = [];
+
+  for (const line of lines) {
+    if (isHeader) {
+      if (line.trim() === "") {
+        isHeader = false;
+      }
+    } else {
+      codeLines.push(line);
+    }
+  }
+  const tempPath = `${testPath}.temp.src`;
+  writeFileSync(tempPath, codeLines.join("\n"), "utf8");
+  return tempPath;
+}
+
+async function runParser(test: TestCaseDefinition, parserPath: string, codeSrcPath: string) {
+  if (test.test_type !== TestCaseType.PARSE_ONLY && test.test_type !== TestCaseType.COMBINED) {
+    return { code: null, stdout: "", stderr: "", passed: true, xmlPath: codeSrcPath };
+  }
+
+  const parserRes = await execCommand("python3", [parserPath, codeSrcPath], test.stdin_file);
+  const isOk = test.expected_parser_exit_codes?.includes(parserRes.exitCode) ?? false;
+  let xmlPath = codeSrcPath;
+  if (test.test_type === TestCaseType.COMBINED && isOk) {
+    xmlPath = `${test.test_source_path}.temp.xml`;
+    writeFileSync(xmlPath, parserRes.stdout, "utf8");
+  }
+  return {
+    code: parserRes.exitCode,
+    stdout: parserRes.stdout,
+    stderr: parserRes.stderr,
+    passed: isOk,
+    xmlPath,
+  };
+}
+
+async function runInterpreter(test: TestCaseDefinition, intPath: string, xmlPath: string) {
+  if (test.test_type !== TestCaseType.EXECUTE_ONLY && test.test_type !== TestCaseType.COMBINED) {
+    return { code: null, stdout: "", stderr: "", passed: true };
+  }
+
+  const intRes = await execCommand(
+    "python3",
+    ["src/solint.py", "-s", resolve(xmlPath)],
+    test.stdin_file,
+    null,
+    intPath
+  );
+  const isOk = test.expected_interpreter_exit_codes?.includes(intRes.exitCode) ?? false;
+  return { code: intRes.exitCode, stdout: intRes.stdout, stderr: intRes.stderr, passed: isOk };
+}
+
+async function compareOutput(test: TestCaseDefinition, intStdout: string) {
+  if (test.expected_stdout_file === null) {
+    return { stdout: "", passed: true };
+  }
+
+  const outTemp = `${test.test_source_path}.temp.out`;
+  writeFileSync(outTemp, intStdout, "utf8");
+
+  const diffRes = await execCommand("diff", [test.expected_stdout_file, outTemp]);
+  if (existsSync(outTemp)) {
+    rmSync(outTemp);
+  }
+
+  return { stdout: diffRes.stdout, passed: diffRes.exitCode === 0 };
+}
+
+async function execOneTest(
+  test: TestCaseDefinition,
+  parserPath: string,
+  intPath: string
+): Promise<TestCaseReport> {
+  /**
+   * Executes a single test case and returns the result.
+   * @param test The test case definition to execute.
+   * @param parserPath The path to the parser executable.
+   * @param intPath The path to the interpreter executable.
+   * @returns A promise that resolves to a TestCaseReport object containing the results of the test execution.
+   */
+
+  let finalResult: TestResult = TestResult.PASSED;
+  const codeSrcPath = getSrcCode(test.test_source_path);
+
+  const parserRes = await runParser(test, parserPath, codeSrcPath);
+  if (!parserRes.passed) {
+    finalResult = TestResult.UNEXPECTED_PARSER_EXIT_CODE;
+  }
+
+  let intData: { code: number | null; stdout: string; stderr: string; passed: boolean } = {
+    code: null,
+    stdout: "",
+    stderr: "",
+    passed: true,
+  };
+
+  if (finalResult === TestResult.PASSED) {
+    intData = await runInterpreter(test, intPath, parserRes.xmlPath);
+    if (!intData.passed) {
+      finalResult = TestResult.UNEXPECTED_INTERPRETER_EXIT_CODE;
+    }
+  }
+
+  let diffOutput = "";
+  if (finalResult === TestResult.PASSED) {
+    const diffRes = await compareOutput(test, intData.stdout);
+    diffOutput = diffRes.stdout;
+    if (!diffRes.passed) {
+      finalResult = TestResult.INTERPRETER_RESULT_DIFFERS;
+    }
+  }
+  // clean up temp source code file
+  if (existsSync(codeSrcPath)) {
+    rmSync(codeSrcPath);
+  }
+  // clean up xml temp file
+  if (parserRes.xmlPath.endsWith(".temp.xml") && existsSync(parserRes.xmlPath)) {
+    rmSync(parserRes.xmlPath);
+  }
+
+  return new TestCaseReport(
+    finalResult,
+    parserRes.code,
+    intData.code,
+    toNull(parserRes.stdout),
+    toNull(parserRes.stderr),
+    toNull(intData.stdout),
+    toNull(intData.stderr),
+    toNull(diffOutput)
+  );
+}
+
+async function executeAllTests(
+  filteredTests: TestCaseDefinition[]
+): Promise<Record<string, CategoryReport>> {
+  const PARSER_PATH = resolve("../sol2xml/sol_to_xml.py");
+  const INT_PATH = resolve("../int");
+  const catReports: Record<string, CategoryReport> = {};
+
+  for (const test of filteredTests) {
+    logger.info(`Testing: ${test.name} [${test.category}]`);
+    const testReport = await execOneTest(test, PARSER_PATH, INT_PATH);
+    const isPassed = testReport.result === TestResult.PASSED;
+    // Update category report
+    const existingCatReport = catReports[test.category];
+    const currPts = existingCatReport ? existingCatReport.total_points : 0;
+    const currPassed = existingCatReport ? existingCatReport.passed_points : 0;
+    const currResults = existingCatReport ? existingCatReport.test_results : {};
+
+    currResults[test.name] = testReport;
+
+    catReports[test.category] = new CategoryReport(
+      currPts + test.points,
+      currPassed + (isPassed ? test.points : 0),
+      currResults
+    );
+  }
+
+  return catReports;
+}
+
 async function main(): Promise<void> {
   /**
    * The main entry point for the SOL26 integration testing script.
@@ -516,6 +756,17 @@ async function main(): Promise<void> {
     writeResult(report, args.output);
     return;
   }
+
+  logger.info("Executing the test cases...");
+  const catReports = await executeAllTests(filteredTests);
+
+  logger.info("Testing completed. Writing the report...");
+  const finalReport = new TestReport({
+    discovered_test_cases: testCases,
+    unexecuted: unexecuted,
+    results: catReports,
+  });
+  writeResult(finalReport, args.output);
 }
 
 await main();
