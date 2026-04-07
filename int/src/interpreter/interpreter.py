@@ -584,6 +584,15 @@ class Interpreter:
 
         block_val = receiver.val
         if selector.startswith("value"):
+            # Process empty block with arity 0
+            if block_val is None:
+                if len(parsed_args) != 0:
+                    raise InterpreterError(
+                        ErrorCode.INT_DNU,
+                        f"Block expects 0 arguments and got {parsed_args}",
+                    )
+                # Empty block returns nil
+                return self.nil_singleton
             # Look into the block and its env (closer)
             if not isinstance(block_val, tuple):
                 raise InterpreterError(ErrorCode.INT_OTHER, "Block is corrupted")
