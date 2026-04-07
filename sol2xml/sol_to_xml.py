@@ -27,7 +27,6 @@ selector: ID ":" (ID ":")*    -> selector
 block: "[" block_body "]"
 
 ?block_body: block_par "|" block_stat    -> param_block
-           | block_stat                  -> stat_block
 
 block_par: (":" ID)*
 
@@ -53,14 +52,12 @@ expr_sel: (ID ":" expr_base)+
 '''
 
 
-# Utility to escape the handful of problematic XML characters
-def xml_escape(s: str) -> str:
+# The SOL26 string escape characters should be already evaluated in the XML
+def process_escaped_entities(s: str) -> str:
     return (
-        s.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-        .replace("'", "&apos;")
+        s.replace("\\n", "\n")
+        .replace("\\\\", "\\")
+        .replace("\\'", "'")
     )
 
 
@@ -147,14 +144,6 @@ class SolTransformer(Transformer):
             "type": "block",
             "params": kids[0],
             "stats": kids[1]
-        }
-
-    def stat_block(self, kids):
-        # only statements
-        return {
-            "type": "block",
-            "params": [],
-            "stats": kids
         }
 
     def block_par(self, kids):
@@ -348,9 +337,12 @@ def build_xml_expr(expr_ast):
         # <literal class="..." value="..."/>
         lit_elem = etree.Element("literal")
         lit_elem.set("class", expr_ast["class"])
-        # Escape the value for XML - should not be done (otherwise escaping escaped character)
-        # val = xml_escape(expr_ast["value"])
-        lit_elem.set("value", expr_ast["value"])
+        
+        val = expr_ast["value"]
+        if expr_ast["class"] == "String":
+            val = process_escaped_entities(val)
+
+        lit_elem.set("value", val)
         return lit_elem
     elif etype == "var":
         # <var name="..."/>
