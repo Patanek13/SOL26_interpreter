@@ -48,10 +48,15 @@ class SolInst:
 class LocalFrame:
     """Represents local variables for blocks or methods"""
 
-    def __init__(self, owner_class: SolClass | None = None) -> None:
+    def __init__(
+        self, owner_class: SolClass | None = None, parent_frame: LocalFrame | None = None
+    ) -> None:
         self.vars: dict[str, SolInst] = {}
         self.owner_class = owner_class
         self.params: set[str] = set()  # Set of parameter names for blocks
+        self.parent_frame = (
+            parent_frame  # Reference to parent frame for nested blocks (closures painful omg)
+        )
 
 
 class Interpreter:
@@ -250,28 +255,50 @@ class Interpreter:
         # Save result into local memory (curr_frame), we don't need to save _var
         if var_name == "_":
             logger.info("Assign: not saving result of var '_' ")
-        else:
-            curr_frame.vars[var_name] = final_result
-            logger.info(f"Assign: Saved object into {var_name}")
+            return final_result
 
-        return final_result  # Every assign returns the last assigned value
+        # We need to find in which frame var lives and update it
+        frame: LocalFrame | None = curr_frame
+        found = False
+        while frame is not None:
+            # Cant ovewrite params of block with outer vars of same name
+            if var_name in frame.vars and var_name not in frame.params:
+                logger.info(f"Assign: updating variable '{var_name}' in existing frame")
+                frame.vars[var_name] = final_result
+                found = True
+                break
+            frame = frame.parent_frame
+
+        # If var not found in any frame we save it in current frame
+        if not found:
+            logger.info(f"Assign: saving variable '{var_name}' in current frame")
+            curr_frame.vars[var_name] = final_result
+
+        logger.info(f"Assign: Saved object into {var_name}")
+        return final_result
 
     def _var_expr(self, var_node: Var, curr_frame: LocalFrame) -> SolInst:
         """Helper function to evaluate variable expression, used in eval_expr"""
         var_name = var_node.name
         logger.info(f"Reading var {var_name}")
-        # Super is just alias for self
-        if var_name in ["self", "super"]:
-            curr_self = curr_frame.vars.get("self")
-            if curr_self:
-                return curr_self
+        # Super is just alias for self when we read var
+        choose_name = "self" if var_name == "super" else var_name
+        # Look for vars in curr frame and its parents (closures)
+        frame: LocalFrame | None = curr_frame
+        while frame is not None:
+            if choose_name in frame.vars:
+                return frame.vars[choose_name]
+            frame = frame.parent_frame
 
-        # Local variables
-        if var_name in curr_frame.vars:
-            return curr_frame.vars[var_name]
-
-        # Instance attributes of object (self)
-        curr_self = curr_frame.vars.get("self")
+        # if not in local vars look for self and its attrs
+        curr_self = None
+        frame = curr_frame
+        while frame is not None:
+            if "self" in frame.vars:
+                curr_self = frame.vars["self"]
+                break
+            frame = frame.parent_frame
+        # if attr called "super" idk its not forbidden
         if curr_self and var_name in curr_self.attrs:
             return curr_self.attrs[var_name]
 
@@ -605,10 +632,8 @@ class Interpreter:
                     f"Block expects {block_node.arity} arguments and got {parsed_args}",
                 )
 
-            # Create frame for block that will be executed and copy vars to it
-            block_frame = LocalFrame(owner_class=outer_frame.owner_class)
-            block_frame.vars.update(outer_frame.vars)
-
+            # Frame referencing to its parent
+            block_frame = LocalFrame(owner_class=outer_frame.owner_class, parent_frame=outer_frame)
             # Save parameters of block
             for param in range(block_node.arity):
                 param_name = block_node.parameters[param].name
