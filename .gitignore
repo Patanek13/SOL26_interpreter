@@ -11,3 +11,4 @@ dist
 .eslintcache
 .idea
 .vscode
+tests_backup
