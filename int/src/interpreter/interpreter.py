@@ -749,14 +749,39 @@ class Interpreter:
         if len(parsed_args) == 1 and selector.endswith(":"):
             attr_name = selector[:-1]  # Remove the ':' ("vysl:" --> "vysl")
 
-            # Check if instance attr collides with method
-            if receiver.sol_class.ast_node is not None:
-                for method in receiver.sol_class.ast_node.methods:
-                    if method.selector == attr_name:
-                        raise InterpreterError(
-                            ErrorCode.INT_INST_ATTR,
-                            f"Collision: Attribute {attr_name} collides with existing method",
-                        )
+            # Check collision in AST nodes
+            curr_cls: SolClass | None = receiver.sol_class
+            while curr_cls is not None:
+                if curr_cls.ast_node is not None:
+                    for method in curr_cls.ast_node.methods:
+                        if method.selector == attr_name:
+                            raise InterpreterError(
+                                ErrorCode.INT_INST_ATTR,
+                                f"ERROR: attribute {attr_name} collides with existing method",
+                            )
+                # Move to parent class
+                curr_cls = (
+                    self.class_table.get(curr_cls.parent_name) if curr_cls.parent_name else None
+                )
+            # Check collision with builtin methods with no params
+            builtin_methods = [
+                "asString",
+                "isNumber",
+                "isString",
+                "isBlock",
+                "isNil",
+                "isBoolean",
+                "print",
+                "value",
+                "length",
+                "asInteger",
+                "not",
+            ]
+            if attr_name in builtin_methods:
+                raise InterpreterError(
+                    ErrorCode.INT_INST_ATTR,
+                    f"ERROR: attribute {attr_name} collides with existing builtin method",
+                )
             # Save value
             logger.info(f"Writing instance attribute {attr_name}")
             receiver.attrs[attr_name] = parsed_args[0]
