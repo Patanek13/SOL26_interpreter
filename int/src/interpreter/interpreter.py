@@ -63,6 +63,16 @@ class Interpreter:
         self.current_program: Program | None = None
         self.class_table: dict[str, SolClass] = {}  # Memory for classes
 
+        dummy_cls = SolClass(name="Dummy")
+
+        # Add vars for singletons (True, False, Nil)
+        # Needed to avoid mypy checks, use dummy class
+        # which initialize but will be rewritten in initialize_builtins
+        # cool trick xd
+        self.nil_singleton: SolInst = SolInst(dummy_cls)
+        self.true_singleton: SolInst = SolInst(dummy_cls)
+        self.false_singleton: SolInst = SolInst(dummy_cls)
+
     def load_program(self, source_file_path: Path) -> None:
         """
         Reads the source SOL-XML file and stores it as the target program for this interpreter.
@@ -135,6 +145,11 @@ class Interpreter:
         # Logical values
         self.class_table["True"] = SolClass(name="True", parent_name="Object")
         self.class_table["False"] = SolClass(name="False", parent_name="Object")
+
+        # Initialize singletons
+        self.nil_singleton = SolInst(self.class_table["Nil"], None)
+        self.true_singleton = SolInst(self.class_table["True"], True)
+        self.false_singleton = SolInst(self.class_table["False"], False)
 
         logger.info("All bultin classes were loaded")
 
@@ -306,10 +321,12 @@ class Interpreter:
                 real_val = int(literal_value)
             elif literal_class == "String":
                 real_val = str(literal_value)
-            elif literal_class == "True" or literal_class == "False":
-                real_val = bool(literal_value)
+            elif literal_class == "True":
+                return self.true_singleton
+            elif literal_class == "False":
+                return self.false_singleton
             elif literal_class == "Nil":
-                real_val = None
+                return self.nil_singleton
 
             return SolInst(sol_class=sol_class, val=real_val)
 
@@ -343,6 +360,7 @@ class Interpreter:
 
         # Numeric operations (1 arg required)
         # Use dict to avoid to many elifs
+        # really like this feature
         math_ops = {
             "plus:": (operator.add, "Integer"),
             "minus:": (operator.sub, "Integer"),
@@ -386,11 +404,10 @@ class Interpreter:
                 return SolInst(self.class_table["Integer"], result)
 
             # Or bool ret type
-            sol_class_name = "True" if result else "False"
-            return SolInst(self.class_table[sol_class_name], result)
+            return self.true_singleton if result else self.false_singleton
 
         if selector == "isNumber":
-            return SolInst(self.class_table["True"], True)
+            return self.true_singleton
         if (selector == "asString" or selector == "asInteger") and len(parsed_args) != 0:
             raise InterpreterError(
                 ErrorCode.INT_OTHER, f"Message {selector} doesn't require and argument"
@@ -417,9 +434,9 @@ class Interpreter:
         block_arg = parsed_args[0]
         # If 0 block won't be executed and returns Nil
         if val_receiver <= 0:
-            return SolInst(self.class_table["Nil"], None)
+            return self.nil_singleton
 
-        last_result = SolInst(self.class_table["Nil"], None)
+        last_result = self.nil_singleton
 
         # Run block n-times
         for n in range(1, val_receiver + 1):
@@ -454,7 +471,7 @@ class Interpreter:
         if selector == "asString":
             return receiver
         if selector == "isString":
-            return SolInst(self.class_table["True"], True)
+            return self.true_singleton
         # length returns INT of chars (1 esc seq = 1 char)
         if selector == "length":
             return SolInst(self.class_table["Integer"], len(val_str))
@@ -463,17 +480,17 @@ class Interpreter:
             try:
                 return SolInst(self.class_table["Integer"], int(val_str))
             except ValueError:
-                return SolInst(self.class_table["Nil"], None)
+                return self.nil_singleton
         if selector == "equalTo:":
             # Return false if comparsion does't make sense
             if len(parsed_args) != 1 or parsed_args[0].sol_class.name != "String":
-                return SolInst(self.class_table["False"], False)
+                return self.false_singleton
             is_eq = val_str == str(parsed_args[0].val)
-            return SolInst(self.class_table["True" if is_eq else "False"], is_eq)
+            return self.true_singleton if is_eq else self.false_singleton
         # concatenateWith returns Nil if arg is not String otherwise returns joined String
         if selector == "concatenateWith:":
             if len(parsed_args) != 1 or parsed_args[0].sol_class.name != "String":
-                return SolInst(self.class_table["Nil"], None)
+                return self.nil_singleton
             return SolInst(self.class_table["String"], val_str + str(parsed_args[0].val))
         # startsWith:endsBefore: indexes from 1, bad args -> nil, args diff <= 0 -> ""
         if selector == "startsWith:endsBefore:":
@@ -490,7 +507,7 @@ class Interpreter:
         # Checks for arguments
         arg1, arg2 = parsed_args[0], parsed_args[1]
         if arg1.sol_class.name != "Integer" or arg2.sol_class.name != "Integer":
-            return SolInst(self.class_table["Nil"], None)
+            return self.nil_singleton
         # Extra check for mypy
         if not isinstance(arg1.val, int) or not isinstance(arg2.val, int):
             raise InterpreterError(
@@ -499,7 +516,7 @@ class Interpreter:
             )
         start, end = int(arg1.val), int(arg2.val)
         if start <= 0 or end <= 0:
-            return SolInst(self.class_table["Nil"], None)
+            return self.nil_singleton
         # args difference <= 0 returns ""
         if (end - start) <= 0:
             return SolInst(self.class_table["String"], "")
@@ -522,10 +539,10 @@ class Interpreter:
             return SolInst(self.class_table["String"], "true" if is_true else "false")
         # Returns negation of true/false
         if selector == "not":
-            return SolInst(self.class_table["False" if is_true else "True"], not is_true)
+            return self.false_singleton if is_true else self.true_singleton
         # returns true
         if selector == "isBoolean":
-            return SolInst(self.class_table["True"], True)
+            return self.true_singleton
 
         # Take argument as block and run it (send block message value:)
         if selector == "ifTrue:ifFalse:":
@@ -553,7 +570,7 @@ class Interpreter:
     ) -> SolInst | None:
         """Handle nil class methods"""
         if selector == "isNil":
-            return SolInst(self.class_table["True"], True)
+            return self.true_singleton
         if selector == "asString":
             return SolInst(self.class_table["String"], "nil")
         return None
@@ -563,7 +580,7 @@ class Interpreter:
     ) -> SolInst | None:
         """Methods for code blocks"""
         if selector == "isBlock":
-            return SolInst(self.class_table["True"], True)
+            return self.true_singleton
 
         block_val = receiver.val
         if selector.startswith("value"):
@@ -575,7 +592,7 @@ class Interpreter:
 
             if len(parsed_args) != block_node.arity:
                 raise InterpreterError(
-                    ErrorCode.INT_OTHER,
+                    ErrorCode.INT_DNU,
                     f"Block expects {block_node.arity} arguments and got {parsed_args}",
                 )
 
@@ -590,7 +607,7 @@ class Interpreter:
                 block_frame.params.add(param_name)
 
             # Evaluate the block content
-            last_result = SolInst(self.class_table["Nil"], None)
+            last_result = self.nil_singleton
             for assign_node in block_node.assigns:
                 last_result = self.eval_assign(assign_node, block_frame)
             return last_result  # return the last value of last command
@@ -600,7 +617,7 @@ class Interpreter:
                 raise InterpreterError(ErrorCode.INT_OTHER, "whileTrue: requires 1 argument")
 
             block_body = parsed_args[0]
-            last_result = SolInst(self.class_table["Nil"], None)
+            last_result = self.nil_singleton
 
             while True:
                 # Run block from receiver (condition)
@@ -624,7 +641,7 @@ class Interpreter:
             if len(parsed_args) != 1:
                 raise InterpreterError(ErrorCode.INT_OTHER, "identicalTo: requires 1 argument")
             is_ident = receiver is parsed_args[0]
-            return SolInst(self.class_table["True" if is_ident else "False"], is_ident)
+            return self.true_singleton if is_ident else self.false_singleton
         # Compares 2 objects based on their data, if no attributes same as identicalTo:
         if selector == "equalTo:":
             if len(parsed_args) != 1:
@@ -633,7 +650,7 @@ class Interpreter:
                 is_eq = receiver is parsed_args[0]
             else:
                 is_eq = receiver.val == parsed_args[0].val
-            return SolInst(self.class_table["True" if is_eq else "False"], is_eq)
+            return self.true_singleton if is_eq else self.false_singleton
         # returns ''
         if selector == "asString":
             if len(parsed_args) != 0:
@@ -647,7 +664,7 @@ class Interpreter:
                 raise InterpreterError(
                     ErrorCode.INT_OTHER, f"Message {selector} doesn't require argument"
                 )
-            return SolInst(self.class_table["False"], False)
+            return self.false_singleton
 
         return None
 
@@ -735,6 +752,14 @@ class Interpreter:
             raise InterpreterError(
                 ErrorCode.INT_OTHER, "Message 'new' doesn't require any arguments"
             )
+        # No new instances, just return singletons
+        if receiver_boss == "Nil":
+            return self.nil_singleton
+        if receiver_boss == "True":
+            return self.true_singleton
+        if receiver_boss == "False":
+            return self.false_singleton
+
         # Create new instance of class_receiver
         new_inst = SolInst(sol_class=class_receiver)
         # Initialize instance attributes with default values
@@ -757,6 +782,14 @@ class Interpreter:
         """Helper function to process message 'from:' for classes"""
         if len(parsed_args) != 1:
             raise InterpreterError(ErrorCode.INT_OTHER, "Message 'from:' requires 1 argument")
+        # No new instances, just return singletons
+        if receiver_boss == "Nil":
+            return self.nil_singleton
+        if receiver_boss == "True":
+            return self.true_singleton
+        if receiver_boss == "False":
+            return self.false_singleton
+
         arg = parsed_args[0]
         arg_boss = self._get_boss_cls_name(arg.sol_class)
         # Check if argument is compatible with receiver class
