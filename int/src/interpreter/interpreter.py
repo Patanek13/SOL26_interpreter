@@ -347,7 +347,9 @@ class Interpreter:
             if literal_class == "Integer":
                 real_val = int(literal_value)
             elif literal_class == "String":
-                real_val = str(literal_value)
+                raw_str = str(literal_value)
+                # Process escape sequences in string literals
+                real_val = raw_str.encode("utf-8").decode("unicode_escape")
             elif literal_class == "True":
                 return self.true_singleton
             elif literal_class == "False":
