@@ -560,17 +560,27 @@ function getSrcCode(testPath: string): string {
 }
 
 async function runParser(test: TestCaseDefinition, parserPath: string, codeSrcPath: string) {
-  if (test.test_type !== TestCaseType.PARSE_ONLY && test.test_type !== TestCaseType.COMBINED) {
-    return { code: null, stdout: "", stderr: "", passed: true, xmlPath: codeSrcPath };
+  // Run parser always, on EXECUTE_ONLY first we need to parse to xml
+  const parserRes = await execCommand("python3", [parserPath, codeSrcPath], test.stdin_file);
+  let isOk = true;
+
+  if (test.test_type === TestCaseType.PARSE_ONLY || test.test_type === TestCaseType.COMBINED) {
+    isOk = test.expected_parser_exit_codes?.includes(parserRes.exitCode) ?? false;
+  } else {
+    // For EXECUTE_ONLY tests, must be ok :)
+    isOk = parserRes.exitCode === 0;
   }
 
-  const parserRes = await execCommand("python3", [parserPath, codeSrcPath], test.stdin_file);
-  const isOk = test.expected_parser_exit_codes?.includes(parserRes.exitCode) ?? false;
+  // Save xml into temp file
   let xmlPath = codeSrcPath;
-  if (test.test_type === TestCaseType.COMBINED && isOk) {
+  if (
+    isOk &&
+    (test.test_type === TestCaseType.EXECUTE_ONLY || test.test_type === TestCaseType.COMBINED)
+  ) {
     xmlPath = `${test.test_source_path}.temp.xml`;
     writeFileSync(xmlPath, parserRes.stdout, "utf8");
   }
+
   return {
     code: parserRes.exitCode,
     stdout: parserRes.stdout,
