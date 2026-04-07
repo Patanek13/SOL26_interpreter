@@ -1,0 +1,30 @@
++++ STRING
+*** Test prevodu retezce na cele cislo - platny a neplatny vstup
+!C! 0
+!I! 0
+>>> 2
+
+class Main : Object {
+    run [ |
+        "Platny prevod"
+        n1 := '123' asInteger.
+        _ := (n1 asString) print.
+        _ := '\n' print.
+
+        "Zaporny prevod"
+        n2 := '-42' asInteger.
+        _ := (n2 asString) print.
+        _ := '\n' print.
+
+        "Neplatny prevod - vraci nil"
+        n3 := 'abc' asInteger.
+        x := (n3 isNil) asString.
+        _ := x print.
+        _ := '\n' print.
+
+        "Prazdny retezec - vraci nil"
+        n4 := '' asInteger.
+        x := (n4 isNil) asString.
+        _ := x print.
+    ]
+}

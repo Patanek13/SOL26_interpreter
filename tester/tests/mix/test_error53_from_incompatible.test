@@ -1,0 +1,13 @@
++++ ERRORS
+*** Test behove chyby 53 - from: s nekompatibilnim argumentem (Integer podtrida z retezce)
+!C! 0
+!I! 53
+>>> 1
+
+class MyNum : Integer { }
+
+class Main : Object {
+    run [ |
+        _ := MyNum from: 'hello'.
+    ]
+}

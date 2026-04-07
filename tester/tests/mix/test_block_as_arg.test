@@ -1,0 +1,26 @@
++++ BLOCKS
+*** Test predani bloku jako argumentu a zaslan zpravy value:value:
+!C! 0
+!I! 0
+>>> 2
+
+class Calculator : Object {
+    apply:a:b: [ :op :a :b |
+        r := op value: a value: b.
+    ]
+}
+
+class Main : Object {
+    run [ |
+        calc := Calculator new.
+        addBlock := [ :x :y | r := x plus: y. ].
+        mulBlock := [ :x :y | r := x multiplyBy: y. ].
+
+        res1 := calc apply: addBlock a: 6 b: 7.
+        _ := (res1 asString) print.
+        _ := '\n' print.
+
+        res2 := calc apply: mulBlock a: 6 b: 7.
+        _ := (res2 asString) print.
+    ]
+}

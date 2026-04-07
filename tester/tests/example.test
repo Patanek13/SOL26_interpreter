@@ -1,0 +1,10 @@
++++ BASIC
+*** Test jednoducheho programu
+!C! 0
+!I! 0
+!I! 42
+>>> 2
+
+class Main : Object {
+run [ | ]
+}

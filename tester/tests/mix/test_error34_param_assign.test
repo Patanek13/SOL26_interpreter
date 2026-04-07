@@ -1,0 +1,12 @@
++++ ERRORS
+*** Test staticke chyby 34 - prirazeni do formalniho parametru
+!C! 0
+!I! 34
+>>> 1
+
+class Main : Object {
+    run [ |
+        b := [ :x | x := 5. ].
+        _ := b value: 10.
+    ]
+}

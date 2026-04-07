@@ -1,0 +1,28 @@
++++ BOOL
+*** Test zkraceneho vyhodnocovani and: a or:
+!C! 0
+!I! 0
+>>> 2
+
+class Main : Object {
+    run [ |
+        "and: - levy operand false, pravy blok se nevyhodnocuje"
+        r1 := false and: [| _ := true. ].
+        _ := (r1 asString) print.
+        _ := '\n' print.
+
+        "or: - levy operand true, pravy blok se nevyhodnocuje"
+        r2 := true or: [| _ := false. ].
+        _ := (r2 asString) print.
+        _ := '\n' print.
+
+        "and: - levy operand true, pravy blok se vyhodnocuje"
+        r3 := true and: [| _ := false. ].
+        _ := (r3 asString) print.
+        _ := '\n' print.
+
+        "or: - levy operand false, pravy blok se vyhodnocuje"
+        r4 := false or: [| _ := true. ].
+        _ := (r4 asString) print.
+    ]
+}

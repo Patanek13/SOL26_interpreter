@@ -1,0 +1,18 @@
++++ BLOCKS
+*** Test bloku jako uzaveru (closure) a zasilan zprav value/value:
+!C! 0
+!I! 0
+>>> 2
+
+class Main : Object {
+    run [ |
+        x := 5.
+        adder := [ :n | r := x plus: n. ].
+        x := 10.
+        res1 := adder value: 3.
+        _ := (res1 asString) print.
+        _ := '\n' print.
+        res2 := adder value: 7.
+        _ := (res2 asString) print.
+    ]
+}

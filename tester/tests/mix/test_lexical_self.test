@@ -1,0 +1,29 @@
++++ BLOCKS
+*** Test ze self uvnitr bloku odkazuje na instanci z doby definice bloku (lexikalni rozsah)
+!C! 0
+!I! 0
+>>> 2
+
+class Holder : Object {
+    storeBlock: [ :b |
+        _ := self stored: b.
+    ]
+    runStored [ |
+        r := (self stored) value.
+    ]
+}
+
+class Main : Object {
+    setup [ |
+        _ := self tag: 'main-instance'.
+        b := [| r := self tag. ].
+        h := Holder new.
+        _ := h storeBlock: b.
+        r := h runStored.
+    ]
+
+    run [ |
+        result := self setup.
+        _ := result print.
+    ]
+}

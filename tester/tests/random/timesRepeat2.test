@@ -1,0 +1,17 @@
++++ TIMES_REPEAT
+*** Invalid timesRepeat
+!C! 0
+>>> 1
+!I! 51
+
+class Main : Object {
+    run [|
+        x := 1.
+        _ := 5 timesRepeat: [ |
+            x := x multiplyBy: 2.
+        ].
+        a := x asString.
+        _ := a print.
+        _ := '\n' print.
+    ]
+}

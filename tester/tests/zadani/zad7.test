@@ -1,0 +1,42 @@
++++ ZADANI_SOL
+*** closure.sol2
+!C! 0
+>>> 2
+!I! 0
+
+class Main : Object {
+    giveObjectWithBlock [ |
+        "Načte řádek a vytvoří objekt pro číslo 1."
+        x := ((String read) asInteger).
+        "Vytvoří blok, který lze opakovaně vyhodnotit. Součástí bloku je v uzávěru
+        odkaz na lokální proměnnou x."
+        b := [| y := ((String read) asInteger) plus: x. ].
+        "Změní hodnotu, na kterou ukazuje x (projeví se i v uzávěru bloku, ale
+        tady to ještě nic neovlivní)."
+        x := 7.
+        "Vytvoří instanci třídy Object a v ní rovnou vytvoří instanční atribut
+        block, do kterého nastaví výše vytvořený blok."
+        z := ((Object new) block: b).
+        "Tato změna x se projeví i v uzávěru bloku."
+        x := 9.
+        "Zde metoda končí, ale proměnná x (nyní s hodnotou 9) stále „žije“ v
+        uzávěru bloku b. Následující příkaz způsobí, že giveObjectWithBlock
+        vrátí vytvořený objekt z jako svou návratovou hodnotu."
+        _ := z.
+    ]
+    run "vstupní bod programu"
+    [ |
+        "Vytvoří objekt s blokem."
+        o := self giveObjectWithBlock.
+        "Načte řetězec '2' (první načtení již proběhlo)."
+        _ := String read.
+        "V rámci vyhodnocení bloku načte číslo 3, vrací 12 (9 + 3)."
+        r1 := ((o block) value).
+        _ := ((r1 asString) print).
+        _ := (('\n' asString) print).
+        "V rámci vyhodnocení bloku načte číslo 4, vrací 13 (9 + 4)."
+        r2 := ((o block) value).
+        _ := ((r2 asString) print).
+        _ := (('\n' asString) print).
+    ]
+}

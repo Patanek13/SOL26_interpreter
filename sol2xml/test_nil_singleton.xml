@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<program language="SOL26" description="Nil new vraci stale stejnou instanci nil">
+  <class name="Main" parent="Object">
+    <method selector="run">
+      <block arity="0">
+        <assign order="1">
+          <var name="a"/>
+          <expr>
+            <literal class="Nil" value="nil"/>
+          </expr>
+        </assign>
+        <assign order="2">
+          <var name="b"/>
+          <expr>
+            <literal class="Nil" value="nil"/>
+          </expr>
+        </assign>
+        <assign order="3">
+          <var name="x"/>
+          <expr>
+            <send selector="asString">
+              <expr>
+                <send selector="identicalTo:">
+                  <expr>
+                    <var name="a"/>
+                  </expr>
+                  <arg order="1">
+                    <expr>
+                      <var name="b"/>
+                    </expr>
+                  </arg>
+                </send>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="4">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <var name="x"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="5">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <literal class="String" value="&#10;"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="6">
+          <var name="x"/>
+          <expr>
+            <send selector="asString">
+              <expr>
+                <send selector="identicalTo:">
+                  <expr>
+                    <var name="a"/>
+                  </expr>
+                  <arg order="1">
+                    <expr>
+                      <literal class="Nil" value="nil"/>
+                    </expr>
+                  </arg>
+                </send>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="7">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <var name="x"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="8">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <literal class="String" value="&#10;"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="9">
+          <var name="c"/>
+          <expr>
+            <send selector="new">
+              <expr>
+                <literal class="class" value="Nil"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="10">
+          <var name="x"/>
+          <expr>
+            <send selector="asString">
+              <expr>
+                <send selector="identicalTo:">
+                  <expr>
+                    <var name="c"/>
+                  </expr>
+                  <arg order="1">
+                    <expr>
+                      <literal class="Nil" value="nil"/>
+                    </expr>
+                  </arg>
+                </send>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="11">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <var name="x"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="12">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <literal class="String" value="&#10;"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="13">
+          <var name="d"/>
+          <expr>
+            <send selector="from:">
+              <expr>
+                <literal class="class" value="Nil"/>
+              </expr>
+              <arg order="1">
+                <expr>
+                  <literal class="Nil" value="nil"/>
+                </expr>
+              </arg>
+            </send>
+          </expr>
+        </assign>
+        <assign order="14">
+          <var name="x"/>
+          <expr>
+            <send selector="asString">
+              <expr>
+                <send selector="identicalTo:">
+                  <expr>
+                    <var name="d"/>
+                  </expr>
+                  <arg order="1">
+                    <expr>
+                      <literal class="Nil" value="nil"/>
+                    </expr>
+                  </arg>
+                </send>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="15">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <var name="x"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+      </block>
+    </method>
+  </class>
+</program>

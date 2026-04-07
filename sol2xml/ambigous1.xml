@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<program language="SOL26" description="vytvoří instanci A">
+  <class name="A" parent="Object">
+    <method selector="foo">
+      <block arity="0"/>
+    </method>
+    <method selector="bar:">
+      <block arity="1">
+        <parameter order="1" name="x"/>
+      </block>
+    </method>
+  </class>
+  <class name="Main" parent="Object">
+    <method selector="run">
+      <block arity="0">
+        <assign order="1">
+          <var name="o"/>
+          <expr>
+            <send selector="new">
+              <expr>
+                <literal class="class" value="A"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="2">
+          <var name="_"/>
+          <expr>
+            <send selector="bar:">
+              <expr>
+                <var name="o"/>
+              </expr>
+              <arg order="1">
+                <expr>
+                  <literal class="Integer" value="1"/>
+                </expr>
+              </arg>
+            </send>
+          </expr>
+        </assign>
+        <assign order="3">
+          <var name="_"/>
+          <expr>
+            <send selector="equalTo:">
+              <expr>
+                <var name="o"/>
+              </expr>
+              <arg order="1">
+                <expr>
+                  <literal class="Integer" value="1"/>
+                </expr>
+              </arg>
+            </send>
+          </expr>
+        </assign>
+        <assign order="4">
+          <var name="_"/>
+          <expr>
+            <send selector="goo:">
+              <expr>
+                <var name="o"/>
+              </expr>
+              <arg order="1">
+                <expr>
+                  <literal class="Integer" value="1"/>
+                </expr>
+              </arg>
+            </send>
+          </expr>
+        </assign>
+        <assign order="5">
+          <var name="_"/>
+          <expr>
+            <send selector="asString:">
+              <expr>
+                <var name="o"/>
+              </expr>
+              <arg order="1">
+                <expr>
+                  <literal class="Integer" value="123"/>
+                </expr>
+              </arg>
+            </send>
+          </expr>
+        </assign>
+      </block>
+    </method>
+  </class>
+</program>

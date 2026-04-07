@@ -1,0 +1,17 @@
++++ ERRORS
+*** Test staticke chyby 35 - redefinice tridy
+!C! 0
+!I! 35
+>>> 1
+
+class Foo : Object {
+    bar [ | _ := 'first' print. ]
+}
+
+class Foo : Object {
+    bar [ | _ := 'second' print. ]
+}
+
+class Main : Object {
+    run [ | _ := (Foo new) bar. ]
+}

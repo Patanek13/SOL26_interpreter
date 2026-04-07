@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<program language="SOL26">
+  <class name="Main" parent="Object">
+    <method selector="run">
+      <block arity="0">
+        <assign order="1">
+          <var name="b"/>
+          <expr>
+            <send selector="new">
+              <expr>
+                <literal class="class" value="Block"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="2">
+          <var name="s"/>
+          <expr>
+            <send selector="asString">
+              <expr>
+                <send selector="isBlock">
+                  <expr>
+                    <var name="b"/>
+                  </expr>
+                </send>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="3">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <var name="s"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="4">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <literal class="String" value="&#10;"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="5">
+          <var name="r"/>
+          <expr>
+            <send selector="value">
+              <expr>
+                <var name="b"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="6">
+          <var name="s"/>
+          <expr>
+            <send selector="asString">
+              <expr>
+                <send selector="isNil">
+                  <expr>
+                    <var name="r"/>
+                  </expr>
+                </send>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="7">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <var name="s"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+      </block>
+    </method>
+  </class>
+</program>

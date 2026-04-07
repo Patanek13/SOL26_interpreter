@@ -1,0 +1,41 @@
++++ OOP
+*** Test viceurovnoveho dedeni (3 urovne) a vyhledavani metod
+!C! 0
+!I! 0
+>>> 2
+
+class A : Object {
+    greet [ | r := 'hello from A'. ]
+    whoAmI [ | r := 'A'. ]
+}
+
+class B : A {
+    whoAmI [ | r := 'B'. ]
+}
+
+class C : B {
+    whoAmI [ | r := 'C'. ]
+    fullGreet [ |
+        g := self greet.
+        w := self whoAmI.
+        r := g concatenateWith: ' - '.
+        r := r concatenateWith: w.
+    ]
+}
+
+class Main : Object {
+    run [ |
+        c := C new.
+        _ := (c greet) print.
+        _ := '\n' print.
+        _ := (c whoAmI) print.
+        _ := '\n' print.
+        _ := (c fullGreet) print.
+        _ := '\n' print.
+
+        b := B new.
+        _ := (b whoAmI) print.
+        _ := '\n' print.
+        _ := (b greet) print.
+    ]
+}

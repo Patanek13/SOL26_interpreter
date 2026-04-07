@@ -1,0 +1,12 @@
++++ ERRORS
+*** Test behove chyby 51 - prijemce nezna zpravu
+!C! 0
+!I! 51
+>>> 1
+
+class Main : Object {
+    run [ |
+        x := 42.
+        _ := x nonexistentMessage.
+    ]
+}

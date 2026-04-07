@@ -1,0 +1,16 @@
++++ BLOCKS
+*** Test smycky whileTrue:
+!C! 0
+!I! 0
+>>> 2
+
+class Main : Object {
+    run [ |
+        _ := self counter: 3.
+        _ := [| c := (self counter) greaterThan: 0. ] whileTrue: [|
+            _ := ((self counter) asString) print.
+            _ := '\n' print.
+            _ := self counter: ((self counter) minus: 1).
+        ].
+    ]
+}

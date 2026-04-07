@@ -1,0 +1,13 @@
++++ BOOL
+*** Test metody not na True a False
+!C! 0
+!I! 0
+>>> 1
+
+class Main : Object {
+    run [ |
+        x := (true not) asString.   _ := x print.
+        x := (false not) asString.  _ := x print.
+        x := ((true not) not) asString. _ := x print.
+    ]
+}

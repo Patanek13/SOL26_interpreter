@@ -1,0 +1,37 @@
++++ OOP
+*** Test instancnich atributu - nastaveni a cteni na self a jine instance
+!C! 0
+!I! 0
+>>> 2
+
+class Point : Object {
+    initX:y: [ :ax :ay |
+        _ := self x: ax.
+        _ := self y: ay.
+    ]
+    printPoint [ |
+        t := (self x) asString.
+        t := t concatenateWith: ','.
+        t := t concatenateWith: ((self y) asString).
+        _ := t print.
+    ]
+}
+
+class Main : Object {
+    run [ |
+        p := Point new.
+        _ := p initX: 3 y: 4.
+        _ := p printPoint.
+        _ := '\n' print.
+
+        q := Point new.
+        _ := q initX: -1 y: 7.
+        _ := q printPoint.
+        _ := '\n' print.
+
+        "Atribut primo na instanci Object"
+        o := Object new.
+        _ := o label: 'test'.
+        _ := (o label) print.
+    ]
+}

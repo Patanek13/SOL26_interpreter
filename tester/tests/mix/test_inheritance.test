@@ -1,0 +1,33 @@
++++ OOP
+*** Test dedicnosti, pretizeni metod a pouziti self a super
+!C! 0
+!I! 0
+>>> 3
+
+class Animal : Object {
+    speak [ |
+        _ := 'Some animal sound' print.
+    ]
+    describe [ |
+        _ := 'I am an animal' print.
+        _ := self speak.
+    ]
+}
+
+class Dog : Animal {
+    speak [ |
+        _ := 'Woof' print.
+    ]
+    speakTwice [ |
+        _ := self speak.
+        _ := super speak.
+    ]
+}
+
+class Main : Object {
+    run [ |
+        d := Dog new.
+        _ := d describe.
+        _ := d speakTwice.
+    ]
+}

@@ -1,0 +1,27 @@
++++ OOP
+*** Test from: - melka kopie instancnich atributu
+!C! 0
+!I! 0
+>>> 2
+
+class Main : Object {
+    run [ |
+        orig := Object new.
+        _ := orig name: 'original'.
+        _ := orig count: 42.
+
+        copy := Object from: orig.
+
+        "Kopie ma stejne hodnoty atributu"
+        _ := (copy name) print.
+        _ := '\n' print.
+        _ := ((copy count) asString) print.
+        _ := '\n' print.
+
+        "Zmena atributu kopie neovlivni original"
+        _ := copy name: 'copy'.
+        _ := (orig name) print.
+        _ := '\n' print.
+        _ := (copy name) print.
+    ]
+}

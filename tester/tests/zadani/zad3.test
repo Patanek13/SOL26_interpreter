@@ -1,0 +1,23 @@
++++ ZADANI_SOL
+*** super_react.sol2
+!C! 0
+>>> 1
+!I! 54
+
+class Main : Object {
+run [|
+"definuje a inicializuje instanční atribut 'value'"
+r := self value: 10.
+"definuje další inst. atribut 'next', inicializuje hodnotou atributu 'value'"
+e := self next: (self value).
+"atribut 'value' již existuje, takže pouze modifikuje hodnotu na nil"
+t := self value: nil.
+"'r', 'e' i 't' nyní ukazují na self"
+"CHYBA 54! Třída definuje metodu foo, jméno nelze použít jako atribut."
+_ := self foo: 10.
+"atributy lze vytvářet na libovolných instancích"
+i := 12.
+_ := i someAttr: 'hello'.
+]
+foo [|]
+}

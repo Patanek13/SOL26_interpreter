@@ -1,0 +1,21 @@
++++ BLOCKS
+*** Test opakovaneho provedeni bloku pomoci timesRepeat:
+!C! 0
+!I! 0
+>>> 2
+
+class Main : Object {
+    run [ |
+        _ := self sum: 0.
+        _ := 5 timesRepeat: [ :i |
+            _ := self sum: ((self sum) plus: i).
+        ].
+        _ := ((self sum) asString) print.
+        _ := '\n' print.
+
+        "0 opakovani - blok se neprovede, vraci nil"
+        r := 0 timesRepeat: [ :i | _ := 'never' print. ].
+        x := (r isNil) asString.
+        _ := x print.
+    ]
+}

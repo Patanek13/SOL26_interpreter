@@ -1,0 +1,12 @@
++++ ERRORS
+*** Test behove chyby 54 - jmeno atributu koliduje s metodou
+!C! 0
+!I! 54
+>>> 1
+
+class Main : Object {
+    run [ |
+        "Metoda 'run' existuje - pokus o nastaveni atributu stejneho jmena selze"
+        _ := self run: 42.
+    ]
+}

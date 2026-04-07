@@ -1,0 +1,37 @@
++++ OOP
+*** Test pristupu k instancnimu atributu pres super, kdyz metoda podtridy stini
+!C! 0
+!I! 54
+>>> 2
+
+class Base : Object {
+    setup [ |
+        _ := self value: 99.
+    ]
+}
+
+class Child : Base {
+    "value je metoda v Child - zastini atribut"
+    value [ |
+        r := 'method result'.
+    ]
+    readAttr [ |
+        "super value - hledame atribut, protoze Base nema metodu value"
+        r := super value.
+    ]
+    readMethod [ |
+        "self value - najde metodu v Child"
+        r := self value.
+    ]
+}
+
+class Main : Object {
+    run [ |
+        c := Child new.
+        _ := c setup.
+        _ := (c readMethod) print.
+        _ := '\n' print.
+
+        _ := ((c readAttr) asString) print.
+    ]
+}

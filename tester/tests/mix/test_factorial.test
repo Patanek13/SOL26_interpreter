@@ -1,0 +1,29 @@
++++ ARITHMETIC
+*** Test rekurzivniho faktorialu pomoci podtridy Integer
+!C! 0
+!I! 0
+>>> 3
+
+class Factorial : Integer {
+    factorial [ |
+        r := (self equalTo: 0)
+            ifTrue:  [| r := Factorial from: 1. ]
+            ifFalse: [| r := self multiplyBy: ((Factorial from: (self plus: -1)) factorial). ].
+    ]
+}
+
+class Main : Object {
+    run [ |
+        x := ((Factorial from: 0) factorial) asString.
+        _ := x print.
+        _ := '\n' print.
+        x := ((Factorial from: 1) factorial) asString.
+        _ := x print.
+        _ := '\n' print.
+        x := ((Factorial from: 5) factorial) asString.
+        _ := x print.
+        _ := '\n' print.
+        x := ((Factorial from: 10) factorial) asString.
+        _ := x print.
+    ]
+}

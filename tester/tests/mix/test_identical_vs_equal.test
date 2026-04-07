@@ -1,0 +1,30 @@
++++ ARITHMETIC
+*** Test identicalTo: vs equalTo: na celych cislech
+!C! 0
+!I! 0
+>>> 2
+
+class Main : Object {
+    run [ |
+        a := Integer from: 7.
+        b := Integer from: 7.
+        c := a.
+
+        "equalTo: porovnava hodnotu - vzdy true pro stejnou cisla"
+        x := (a equalTo: b) asString. _ := x print.
+        _ := '\n' print.
+        x := (a equalTo: c) asString. _ := x print.
+        _ := '\n' print.
+
+        "identicalTo: s c (alias) musi byt true"
+        x := (a identicalTo: c) asString. _ := x print.
+        _ := '\n' print.
+
+        "identicalTo: s b zavisi na implementaci, ale equalTo: musi platit"
+        x := (a equalTo: 7) asString. _ := x print.
+        _ := '\n' print.
+
+        "Ruzne hodnoty"
+        x := (a equalTo: 8) asString. _ := x print.
+    ]
+}

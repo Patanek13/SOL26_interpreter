@@ -1,0 +1,11 @@
++++ ERRORS
+*** Test staticke chyby 31 - chybejici trida Main
+!C! 0
+!I! 31
+>>> 1
+
+class Foo : Object {
+    run [ |
+        _ := 'This is not Main' print.
+    ]
+}

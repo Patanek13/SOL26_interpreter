@@ -1,0 +1,20 @@
++++ BOOL
+*** Test podminenych vyrazu ifTrue:ifFalse: s booleovskymi hodnotami
+!C! 0
+!I! 0
+>>> 2
+
+class Main : Object {
+    run [ |
+        a := 5.
+        b := 10.
+        _ := (a greaterThan: b) ifTrue: [| _ := 'a is greater' print. ]
+                                ifFalse: [| _ := 'b is greater' print. ].
+        _ := '\n' print.
+        _ := (b greaterThan: a) ifTrue: [| _ := 'yes' print. ]
+                                ifFalse: [| _ := 'no' print. ].
+        _ := '\n' print.
+        _ := (a equalTo: 5) ifTrue: [| _ := 'equal' print. ]
+                            ifFalse: [| _ := 'not equal' print. ].
+    ]
+}

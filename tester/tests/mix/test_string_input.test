@@ -1,0 +1,17 @@
++++ STRING
+*** Test cteni retezce ze vstupu a jeho vypisu
+!C! 0
+!I! 0
+>>> 2
+
+class Main : Object {
+    run [ |
+        line := String read.
+        _ := line print.
+        _ := '\n' print.
+        
+        n := line asInteger.
+        doubled := n plus: n.
+        _ := (doubled asString) print.
+    ]
+}

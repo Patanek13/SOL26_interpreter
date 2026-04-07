@@ -1,9 +1,0 @@
-*** Fail test without category
-+++
-!C! 0
-!I! 51
->>> 2
-
-class Main : Object {
-  run [ _ := self ahoj. ]
-}

@@ -1,0 +1,13 @@
++++ ERRORS
+*** Test behove chyby 53 - deleni nulou
+!C! 0
+!I! 53
+>>> 1
+
+class Main : Object {
+    run [ |
+        a := 10.
+        b := 0.
+        _ := a divBy: b.
+    ]
+}

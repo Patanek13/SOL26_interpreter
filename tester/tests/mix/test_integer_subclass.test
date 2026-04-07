@@ -1,0 +1,26 @@
++++ OOP
+*** Test Integer from: a pouziti podtridy Integer
+!C! 0
+!I! 0
+>>> 2
+
+class MyInt : Integer {
+    doubled [ |
+        r := self plus: self.
+    ]
+}
+
+class Main : Object {
+    run [ |
+        x := MyInt from: 7.
+        _ := ((x doubled) asString) print.
+        _ := '\n' print.
+
+        t := (x equalTo: 7) asString.
+        _ := t print.
+        _ := '\n' print.
+
+        y := MyInt from: 0.
+        _ := ((y doubled) asString) print.
+    ]
+}

@@ -1,0 +1,31 @@
++++ BASIC
+*** Test typovych dotazu isNumber, isString, isBlock, isBoolean, isNil
+!C! 0
+!I! 0
+>>> 1
+
+class Main : Object {
+    run [ |
+        x := (42 isNumber) asString.          _ := x print.
+        _ := '\n' print.
+        x := ('hi' isString) asString.        _ := x print.
+        _ := '\n' print.
+        x := ([| ] isBlock) asString.        _ := x print.
+        _ := '\n' print.
+        x := (true isBoolean) asString.       _ := x print.
+        _ := '\n' print.
+        x := (false isBoolean) asString.      _ := x print.
+        _ := '\n' print.
+        x := (nil isNil) asString.            _ := x print.
+        _ := '\n' print.
+
+        "Krizove kontroly"
+        x := (42 isString) asString.          _ := x print.
+        _ := '\n' print.
+        x := ('hi' isNumber) asString.        _ := x print.
+        _ := '\n' print.
+        x := (nil isBoolean) asString.        _ := x print.
+        _ := '\n' print.
+        x := (true isNil) asString.           _ := x print.
+    ]
+}

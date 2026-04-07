@@ -1,0 +1,21 @@
++++ STRING
+*** Test escape sekvenci v retezci: \n, \', \\
+!C! 0
+!I! 0
+>>> 1
+
+class Main : Object {
+    run [ |
+        "Newline uvnitr vystupu"
+        _ := 'line1\nline2' print.
+        _ := '\n' print.
+        "Jednoducha uvozovka uvnitr retezce"
+        _ := 'it\'s ok' print.
+        _ := '\n' print.
+        "Zpetne lomitko"
+        _ := 'back\\slash' print.
+        _ := '\n' print.
+        "Kombinace"
+        _ := 'a\'b\\c\nd' print.
+    ]
+}

@@ -1,0 +1,22 @@
++++ STRING
+*** Test operaci nad retezci - konkatenace, podretezec, delka
+!C! 0
+!I! 0
+>>> 2
+
+class Main : Object {
+    run [ |
+        s1 := 'Hello'.
+        s2 := ' World'.
+        s3 := s1 concatenateWith: s2.
+        _ := s3 print.
+        _ := '\n' print.
+
+        len := s3 length.
+        _ := (len asString) print.
+        _ := '\n' print.
+        
+        sub := s3 startsWith: 1 endsBefore: 6.
+        _ := sub print.
+    ]
+}

@@ -1,0 +1,31 @@
++++ STRING
+*** Test podretezce startsWith:endsBefore: - hranicni pripady
+!C! 0
+!I! 0
+>>> 2
+
+class Main : Object {
+    run [ |
+        s := 'Hello'.
+
+        "Cely retezec"
+        r1 := s startsWith: 1 endsBefore: 6.
+        _ := r1 print.
+        _ := '\n' print.
+
+        "Prazdny podretezec (rozdil <= 0)"
+        r2 := s startsWith: 3 endsBefore: 3.
+        _ := r2 print.
+        _ := '\n' print.
+
+        "endsBefore za koncem - orizne na konec retezce"
+        r3 := s startsWith: 3 endsBefore: 100.
+        _ := r3 print.
+        _ := '\n' print.
+
+        "Neplatny argument - vraci nil"
+        r4 := s startsWith: 0 endsBefore: 3.
+        x := (r4 isNil) asString.
+        _ := x print.
+    ]
+}

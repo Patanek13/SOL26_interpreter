@@ -1,0 +1,31 @@
++++ BLOCKS
+*** Test ze vysledkem bloku je hodnota posledniho vyrazu
+!C! 0
+!I! 0
+>>> 2
+
+class Main : Object {
+    compute: [ :x |
+        _ := x plus: 1.
+        _ := x plus: 2.
+        u := x plus: 3.
+    ]
+
+    run [ |
+        r1 := self compute: 10.
+        _ := (r1 asString) print.
+        _ := '\n' print.
+
+        "Prazdny blok vraci nil"
+        b := [| ].
+        r2 := b value.
+        tmp := (r2 isNil) asString.
+        _ := tmp print.
+        _ := '\n' print.
+
+        "Blok s vice prikazy - vysledek je posledni"
+        b2 := [| _ := 'ignored'. _ := 42. ].
+        r3 := b2 value.
+        _ := (r3 asString) print.
+    ]
+}

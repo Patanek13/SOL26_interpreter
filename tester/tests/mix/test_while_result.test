@@ -1,0 +1,24 @@
++++ BLOCKS
+*** Test ze whileTrue: vraci navratovou hodnotu posledniho provedeni tela
+!C! 0
+!I! 0
+>>> 1
+
+class Main : Object {
+    run [ |
+        _ := self i: 3.
+        "Posledni vyraz tela je asString - vraci retezec posledni iterace"
+        last := [| r := (self i) greaterThan: 0. ] whileTrue: [|
+            r := (self i) asString.
+            _ := self i: ((self i) minus: 1).
+            r2 := (self i) asString.
+        ].
+        "Posledni iterace: i bylo 1, po odectu i=0, r2 = '0'"
+        _ := last print.
+        _ := '\n' print.
+
+        "Smycka ktera se neprovede - vraci nil"
+        zero := [| r := false. ] whileTrue: [| _ := 'never'. ].
+        x := (zero isNil) asString. _ := x print.
+    ]
+}

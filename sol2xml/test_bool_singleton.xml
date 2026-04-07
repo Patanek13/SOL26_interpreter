@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<program language="SOL26" description="Vysledek not je stale jedinavek">
+  <class name="Main" parent="Object">
+    <method selector="run">
+      <block arity="0">
+        <assign order="1">
+          <var name="t1"/>
+          <expr>
+            <literal class="True" value="true"/>
+          </expr>
+        </assign>
+        <assign order="2">
+          <var name="t2"/>
+          <expr>
+            <literal class="True" value="true"/>
+          </expr>
+        </assign>
+        <assign order="3">
+          <var name="f1"/>
+          <expr>
+            <literal class="False" value="false"/>
+          </expr>
+        </assign>
+        <assign order="4">
+          <var name="f2"/>
+          <expr>
+            <literal class="False" value="false"/>
+          </expr>
+        </assign>
+        <assign order="5">
+          <var name="x"/>
+          <expr>
+            <send selector="asString">
+              <expr>
+                <send selector="identicalTo:">
+                  <expr>
+                    <var name="t1"/>
+                  </expr>
+                  <arg order="1">
+                    <expr>
+                      <var name="t2"/>
+                    </expr>
+                  </arg>
+                </send>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="6">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <var name="x"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="7">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <literal class="String" value="&#10;"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="8">
+          <var name="x"/>
+          <expr>
+            <send selector="asString">
+              <expr>
+                <send selector="identicalTo:">
+                  <expr>
+                    <var name="f1"/>
+                  </expr>
+                  <arg order="1">
+                    <expr>
+                      <var name="f2"/>
+                    </expr>
+                  </arg>
+                </send>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="9">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <var name="x"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="10">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <literal class="String" value="&#10;"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="11">
+          <var name="x"/>
+          <expr>
+            <send selector="asString">
+              <expr>
+                <send selector="identicalTo:">
+                  <expr>
+                    <var name="t1"/>
+                  </expr>
+                  <arg order="1">
+                    <expr>
+                      <var name="f1"/>
+                    </expr>
+                  </arg>
+                </send>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="12">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <var name="x"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="13">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <literal class="String" value="&#10;"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="14">
+          <var name="x"/>
+          <expr>
+            <send selector="asString">
+              <expr>
+                <send selector="identicalTo:">
+                  <expr>
+                    <send selector="not">
+                      <expr>
+                        <literal class="True" value="true"/>
+                      </expr>
+                    </send>
+                  </expr>
+                  <arg order="1">
+                    <expr>
+                      <literal class="False" value="false"/>
+                    </expr>
+                  </arg>
+                </send>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="15">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <var name="x"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="16">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <literal class="String" value="&#10;"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="17">
+          <var name="x"/>
+          <expr>
+            <send selector="asString">
+              <expr>
+                <send selector="identicalTo:">
+                  <expr>
+                    <send selector="not">
+                      <expr>
+                        <literal class="False" value="false"/>
+                      </expr>
+                    </send>
+                  </expr>
+                  <arg order="1">
+                    <expr>
+                      <literal class="True" value="true"/>
+                    </expr>
+                  </arg>
+                </send>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+        <assign order="18">
+          <var name="_"/>
+          <expr>
+            <send selector="print">
+              <expr>
+                <var name="x"/>
+              </expr>
+            </send>
+          </expr>
+        </assign>
+      </block>
+    </method>
+  </class>
+</program>

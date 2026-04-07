@@ -1,9 +1,0 @@
-*** Valid denition of a test
-+++ BASIC
-!C! 0
-!I! 0
->>> 5
-
-class Main : Object {
-  run [ _ := 'ahoj' print. ]
-}

@@ -1,0 +1,20 @@
++++ STRING
+*** Test nacitani cisel ze vstupu ve smycce dokud nedojde 0
+!C! 0
+!I! 0
+>>> 3
+
+class Main : Object {
+    run [ |
+        _ := self total: 0.
+        _ := self continue: true.
+        _ := [| _ := self continue. ] whileTrue: [|
+            line := String read.
+            n := line asInteger.
+            _ := (n equalTo: 0)
+                ifTrue:  [| _ := self continue: false. ]
+                ifFalse: [| _ := self total: ((self total) plus: n). ].
+        ].
+        _ := ((self total) asString) print.
+    ]
+}

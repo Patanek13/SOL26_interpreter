@@ -1,0 +1,24 @@
++++ BASIC
+*** Test ze Object asString vraci prazdny retezec a potomci ho predefinuji
+!C! 0
+!I! 0
+>>> 1
+
+class MyObj : Object {
+    asString [ | r := 'MyObj instance'. ]
+}
+
+class Main : Object {
+    run [ |
+        o := Object new.
+        _ := (o asString) print.
+
+        m := MyObj new.
+        _ := (m asString) print.
+
+        _ := (42 asString) print.
+        _ := ('hello' asString) print.
+        _ := (true asString) print.
+        _ := (nil asString) print.
+    ]
+}
