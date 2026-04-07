@@ -560,31 +560,45 @@ function getSrcCode(testPath: string): string {
 }
 
 async function runParser(test: TestCaseDefinition, parserPath: string, codeSrcPath: string) {
-  // Run parser always, on EXECUTE_ONLY first we need to parse to xml
-  const parserRes = await execCommand("python3", [parserPath, codeSrcPath], test.stdin_file);
-  let isOk = true;
+  const srcCode = readFileSync(codeSrcPath, "utf8").trim();
+  // Check if it is xml already
+  const isXml = srcCode.startsWith("<?xml") || srcCode.startsWith("<program");
+  let exCode = 0;
+  let stdout = "";
+  let stderr = "";
 
-  if (test.test_type === TestCaseType.PARSE_ONLY || test.test_type === TestCaseType.COMBINED) {
-    isOk = test.expected_parser_exit_codes?.includes(parserRes.exitCode) ?? false;
+  if (isXml) {
+    // dont run parser, just copy content
+    stdout = srcCode;
   } else {
-    // For EXECUTE_ONLY tests, must be ok :)
-    isOk = parserRes.exitCode === 0;
+    const parserRes = await execCommand("python3", [parserPath, codeSrcPath], test.stdin_file);
+    exCode = parserRes.exitCode;
+    stdout = parserRes.stdout;
+    stderr = parserRes.stderr;
   }
-
-  // Save xml into temp file
+  // Check if parser ended good
+  let isOk = true;
+  if (test.test_type === TestCaseType.PARSE_ONLY || test.test_type === TestCaseType.COMBINED) {
+    isOk = test.expected_parser_exit_codes?.includes(exCode) ?? false;
+  } else {
+    // Exec only so expect 0 idk :)
+    isOk = exCode === 0;
+  }
+  // Save xml to temp file
   let xmlPath = codeSrcPath;
   if (
     isOk &&
     (test.test_type === TestCaseType.EXECUTE_ONLY || test.test_type === TestCaseType.COMBINED)
   ) {
+    // Write the parser output to a temp xml file for the interpreter to consume
     xmlPath = `${test.test_source_path}.temp.xml`;
-    writeFileSync(xmlPath, parserRes.stdout, "utf8");
+    writeFileSync(xmlPath, stdout, "utf8");
   }
 
   return {
-    code: parserRes.exitCode,
-    stdout: parserRes.stdout,
-    stderr: parserRes.stderr,
+    code: exCode,
+    stdout: stdout,
+    stderr: stderr,
     passed: isOk,
     xmlPath,
   };
