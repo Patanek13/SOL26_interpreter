@@ -501,7 +501,7 @@ async function execCommand(
    * @returns A promise that resolves to an object containing the exit code, stdout, stderr
    */
   return new Promise((resolve) => {
-    const proc = spawn(command, args, { cwd: cwd, shell: true });
+    const proc = spawn(command, args, { cwd: cwd });
 
     let stdout = "";
     let stderr = "";
@@ -703,8 +703,8 @@ async function execOneTest(
 async function executeAllTests(
   filteredTests: TestCaseDefinition[]
 ): Promise<Record<string, CategoryReport>> {
-  const PARSER_PATH = resolve("../sol2xml/sol_to_xml.py");
-  const INT_PATH = resolve("../int");
+  const PARSER_PATH = resolve("int/sol2xml/sol_to_xml.py");
+  const INT_PATH = resolve("int");
   const catReports: Record<string, CategoryReport> = {};
 
   for (const test of filteredTests) {
