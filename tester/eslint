@@ -1,0 +1,4 @@
+#!/bin/bash
+# run eslint and pass all arguments to it
+npx eslint "$@"
+

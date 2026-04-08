@@ -1,0 +1,3 @@
+#!/bin/bash
+# run ruff and send all arguments to it
+ruff "$@"

@@ -1,0 +1,3 @@
+#!/bin/bash
+# run prettier and pass all arguments to it
+npx prettier "$@"

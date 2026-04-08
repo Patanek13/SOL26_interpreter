@@ -1,0 +1,3 @@
+#!/bin/bash
+# Run mypy and pass all arguments to it
+mypy "$@"
