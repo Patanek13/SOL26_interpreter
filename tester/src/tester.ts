@@ -425,15 +425,29 @@ async function loadAllTests(
   return { tests, unexecuted };
 }
 
-// helper func to find out if test case should be inlcuded based on the provided filters
-function isIncluded(
-  test: TestCaseDefinition,
-  args: CliArguments,
-  hasIncludeFilters: boolean
-): boolean {
-  if (!hasIncludeFilters) {
-    return true;
-  }
+// helper func to check exclude filters, if any matches return the reason, otherwise null
+function checkExcludeFilters(test: TestCaseDefinition, args: CliArguments): string | null {
+  if (matchTestCase(test.category, args.exclude_category, args.regex_filters))
+    return "Test was filtered by category";
+  if (matchTestCase(test.category, args.exclude, args.regex_filters))
+    return "Test was filtered by category";
+
+  if (matchTestCase(test.name, args.exclude_test, args.regex_filters))
+    return "Test was filtered by name";
+  if (matchTestCase(test.name, args.exclude, args.regex_filters))
+    return "Test was filtered by name";
+
+  return null;
+}
+
+// helper func to check include filters, only if exclude filters didnt filter out the test case
+function checkIncludeFilters(test: TestCaseDefinition, args: CliArguments): string | null {
+  const hasIncludeFilters =
+    (args.include !== null && args.include.length > 0) ||
+    (args.include_category !== null && args.include_category.length > 0) ||
+    (args.include_test !== null && args.include_test.length > 0);
+
+  if (!hasIncludeFilters) return null;
 
   const matchName =
     matchTestCase(test.name, args.include_test, args.regex_filters) ||
@@ -442,16 +456,24 @@ function isIncluded(
     matchTestCase(test.category, args.include_category, args.regex_filters) ||
     matchTestCase(test.category, args.include, args.regex_filters);
 
-  return matchName || matchCat;
+  if (!matchName && !matchCat) {
+    if (args.include_category !== null && args.include_category.length > 0) {
+      return "Test was filtered by category";
+    }
+    return "Test was filtered by name";
+  }
+
+  return null;
 }
-// helper func to find out if test case should be excluded based on the provided filters
-function isExcluded(test: TestCaseDefinition, args: CliArguments): boolean {
-  return (
-    matchTestCase(test.name, args.exclude_test, args.regex_filters) ||
-    matchTestCase(test.name, args.exclude, args.regex_filters) ||
-    matchTestCase(test.category, args.exclude_category, args.regex_filters) ||
-    matchTestCase(test.category, args.exclude, args.regex_filters)
-  );
+
+// Main func to connect the filter logic and determine the final filter result for a test case
+function getFilterResult(test: TestCaseDefinition, args: CliArguments): string | null {
+  const excludeReason = checkExcludeFilters(test, args);
+  if (excludeReason !== null) {
+    return excludeReason;
+  }
+
+  return checkIncludeFilters(test, args);
 }
 
 function filterTests(
@@ -460,22 +482,18 @@ function filterTests(
   unexecuted: Record<string, UnexecutedReason>
 ): TestCaseDefinition[] {
   const filteredTests: TestCaseDefinition[] = [];
-  const hasIncludeFilters =
-    (args.include !== null && args.include.length > 0) ||
-    (args.include_category !== null && args.include_category.length > 0) ||
-    (args.include_test !== null && args.include_test.length > 0);
 
   for (const test of tests) {
-    if (isIncluded(test, args, hasIncludeFilters) && !isExcluded(test, args)) {
+    const filterResult = getFilterResult(test, args);
+    if (filterResult === null) {
       filteredTests.push(test);
     } else {
       unexecuted[test.name] = new UnexecutedReason(
         UnexecutedReasonCode.FILTERED_OUT,
-        "The test case was filtered out by provided filters."
+        filterResult
       );
     }
   }
-
   return filteredTests;
 }
 
