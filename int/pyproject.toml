@@ -20,6 +20,7 @@ dev = [
 python_version = "3.14"
 strict = true
 pretty = true
+exclude = ["input_model.py"]
 show_error_context = true
 show_column_numbers = true
 show_error_codes = true
@@ -32,6 +33,7 @@ plugins = [
 
 [tool.ruff]
 src = ["src"]
+exclude = ["sol_to_xml.py"]
 line-length = 99
 target-version = "py314"
 show-fixes = true

@@ -23,11 +23,12 @@ import {
   rmSync,
   readFileSync,
 } from "node:fs";
-import { dirname, resolve, join } from "node:path";
+import { dirname, resolve, join, basename } from "node:path";
 import { parseArgs } from "node:util";
 import { readdir, readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { Buffer } from "node:buffer";
+import * as os from "node:os";
 
 import {
   TestReport,
@@ -554,7 +555,7 @@ function getSrcCode(testPath: string): string {
       codeLines.push(line);
     }
   }
-  const tempPath = `${testPath}.temp.src`;
+  const tempPath = join(os.tmpdir(), `${basename(testPath)}.temp.src`);
   writeFileSync(tempPath, codeLines.join("\n"), "utf8");
   return tempPath;
 }
@@ -591,7 +592,7 @@ async function runParser(test: TestCaseDefinition, parserPath: string, codeSrcPa
     (test.test_type === TestCaseType.EXECUTE_ONLY || test.test_type === TestCaseType.COMBINED)
   ) {
     // Write the parser output to a temp xml file for the interpreter to consume
-    xmlPath = `${test.test_source_path}.temp.xml`;
+    xmlPath = join(os.tmpdir(), `${basename(test.test_source_path)}.temp.xml`);
     writeFileSync(xmlPath, stdout, "utf8");
   }
 
@@ -625,7 +626,7 @@ async function compareOutput(test: TestCaseDefinition, intStdout: string) {
     return { stdout: "", passed: true };
   }
 
-  const outTemp = `${test.test_source_path}.temp.out`;
+  const outTemp = join(os.tmpdir(), `${basename(test.test_source_path)}.temp.out`);
   writeFileSync(outTemp, intStdout, "utf8");
 
   const diffRes = await execCommand("diff", [test.expected_stdout_file, outTemp]);
