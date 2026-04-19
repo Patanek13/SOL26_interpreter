@@ -722,8 +722,10 @@ async function execOneTest(
 async function executeAllTests(
   filteredTests: TestCaseDefinition[]
 ): Promise<Record<string, CategoryReport>> {
-  const PARSER_PATH = resolve("int/sol2xml/sol_to_xml.py");
-  const INT_PATH = resolve("int");
+  const int_local_path = resolve("int");
+  const int_up = resolve("../int");
+  const INT_PATH = existsSync(int_local_path) ? int_local_path : int_up;
+  const PARSER_PATH = join(INT_PATH, "sol2xml/sol_to_xml.py");
   const catReports: Record<string, CategoryReport> = {};
 
   for (const test of filteredTests) {
