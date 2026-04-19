@@ -133,6 +133,20 @@ class Interpreter:
                 error_code=ErrorCode.SEM_MAIN, message="run method is missing in Main class!"
             )
 
+        for class_name, cls_obj in self.class_table.items():
+            visited = set()
+            curr: SolClass | None = cls_obj
+            while curr is not None and curr.parent_name is not None:
+                if curr.parent_name in visited or curr.parent_name == class_name:
+                    raise InterpreterError(
+                        error_code=ErrorCode.SEM_ERROR,
+                        message=f"Cyclic inheritance in class {class_name}",
+                    )
+                visited.add(curr.parent_name)
+                # Move to parent class
+                # If not found, return None and while breaks
+                curr = self.class_table.get(curr.parent_name)
+
         logger.info("Static check successful!")
 
     def initialize_builtins(self) -> None:
@@ -175,7 +189,14 @@ class Interpreter:
         for ast_class in self.current_program.classes:
             class_name = ast_class.name
 
+            seen_selectors = set()  # to check for duplicate selectors in the same class
             for method in ast_class.methods:
+                if method.selector in seen_selectors:
+                    raise InterpreterError(
+                        ErrorCode.SEM_COLLISION,
+                        f"Duplicate method selector {method.selector} in class {class_name}",
+                    )
+                seen_selectors.add(method.selector)
                 # Expected arity is number of ':'
                 expected_arity = method.selector.count(":")
                 if method.block is not None and method.block.arity != expected_arity:
@@ -184,6 +205,9 @@ class Interpreter:
                         f"Method {method.selector} in class {class_name} has arity \
                         {method.block.arity} but expected {expected_arity}",
                     )
+                # Check for collision of block parameters with outer params
+                if method.block is not None:
+                    self._check_param_collision(method.block, set())
 
             # Check for redefinitions
             if class_name in self.class_table:
@@ -232,6 +256,30 @@ class Interpreter:
         # Blocks in method run
         for assign_node in run_method_node.block.assigns:
             self.eval_assign(assign_node, curr_frame)
+
+    def _check_param_collision(self, block: Any, outer_params: set[str]) -> None:
+        """Helper function to check for collision of block parameters with outer params"""
+        if block is None:
+            return
+
+        curr_params = set()
+        for param in block.parameters:
+            if param.name in curr_params:
+                raise InterpreterError(
+                    ErrorCode.SEM_COLLISION,
+                    f"Duplicate parameter name {param.name}",
+                )
+            if param.name in outer_params:
+                raise InterpreterError(
+                    ErrorCode.SEM_COLLISION,
+                    f"Parameter name {param.name} collides with outer parameter",
+                )
+            curr_params.add(param.name)
+        # Check also nested blocks
+        all_known_params = outer_params.union(curr_params)
+        for assign_node in block.assigns:
+            if assign_node.expr.block is not None:
+                self._check_param_collision(assign_node.expr.block, all_known_params)
 
     def eval_assign(self, assign_node: Assign, curr_frame: LocalFrame) -> SolInst:
         """Evaluates assign cmd and saves result into current frame"""
