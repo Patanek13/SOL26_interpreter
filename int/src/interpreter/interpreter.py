@@ -133,20 +133,6 @@ class Interpreter:
                 error_code=ErrorCode.SEM_MAIN, message="run method is missing in Main class!"
             )
 
-        for class_name, cls_obj in self.class_table.items():
-            visited = set()
-            curr: SolClass | None = cls_obj
-            while curr is not None and curr.parent_name is not None:
-                if curr.parent_name in visited or curr.parent_name == class_name:
-                    raise InterpreterError(
-                        error_code=ErrorCode.SEM_ERROR,
-                        message=f"Cyclic inheritance in class {class_name}",
-                    )
-                visited.add(curr.parent_name)
-                # Move to parent class
-                # If not found, return None and while breaks
-                curr = self.class_table.get(curr.parent_name)
-
         logger.info("Static check successful!")
 
     def initialize_builtins(self) -> None:
@@ -171,6 +157,21 @@ class Interpreter:
         self.false_singleton = SolInst(self.class_table["False"], False)
 
         logger.info("All bultin classes were loaded")
+
+    def _check_cyclic_inheritance(self) -> None:
+        """Helper method to check for cyclic inheritance in class definitions"""
+        for check_name, cls_obj in self.class_table.items():
+            visited = set()
+            curr: SolClass | None = cls_obj
+            while curr is not None and curr.parent_name is not None:
+                if curr.parent_name in visited or curr.parent_name == check_name:
+                    raise InterpreterError(
+                        error_code=ErrorCode.SEM_COLLISION,
+                        message=f"Cyclic inheritance in class {check_name}",
+                    )
+                visited.add(curr.parent_name)
+                # Move to parent class
+                curr = self.class_table.get(curr.parent_name)
 
     def execute(self, input_io: TextIO) -> None:
         """
@@ -223,6 +224,8 @@ class Interpreter:
                 parent_name=ast_class.parent if ast_class.parent else None,
                 ast_node=ast_class,
             )
+
+        self._check_cyclic_inheritance()
 
         # Create first instance
         main_cls_def = self.class_table["Main"]
