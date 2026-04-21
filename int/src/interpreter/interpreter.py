@@ -9,7 +9,6 @@ Author: Patrik Lošťák <xlostap00>
 
 import logging
 import operator
-import sys
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -178,6 +177,7 @@ class Interpreter:
         Executes the currently loaded program, using the provided input stream as standard input.
         """
         logger.info("Executing program")
+        self.input_io = input_io
 
         # Check for mypy that program is not None
         if self.current_program is None:
@@ -931,7 +931,7 @@ class Interpreter:
                 ErrorCode.INT_OTHER, "Message 'read' doesn't require any arguments"
             )
         # Read line from input and create new instance of String with it
-        input_line = sys.stdin.readline()
+        input_line = self.input_io.readline()
         if input_line.endswith("\n"):
             input_line = input_line[:-1]  # Remove trailing newline
         if input_line.endswith("\r"):
