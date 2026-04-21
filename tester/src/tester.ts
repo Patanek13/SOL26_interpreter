@@ -628,13 +628,15 @@ async function runInterpreter(test: TestCaseDefinition, intPath: string, xmlPath
     return { code: null, stdout: "", stderr: "", passed: true };
   }
 
-  const intRes = await execCommand(
-    "python3",
-    ["src/solint.py", "-s", resolve(xmlPath)],
-    test.stdin_file,
-    null,
-    intPath
-  );
+  // Args for int
+  const args = ["src/solint.py", "--source", resolve(xmlPath)];
+
+  // if .in doesn't exist, send it as --input
+  if (test.stdin_file) {
+    args.push("--input", resolve(test.stdin_file));
+  }
+
+  const intRes = await execCommand("python3", args, null, null, intPath);
   const isOk = test.expected_interpreter_exit_codes?.includes(intRes.exitCode) ?? false;
   return { code: intRes.exitCode, stdout: intRes.stdout, stderr: intRes.stderr, passed: isOk };
 }
@@ -691,7 +693,7 @@ async function execOneTest(
   }
 
   let diffOutput = "";
-  if (finalResult === TestResult.PASSED) {
+  if (finalResult === TestResult.PASSED && intData.code === 0) {
     const diffRes = await compareOutput(test, intData.stdout);
     diffOutput = diffRes.stdout;
     if (!diffRes.passed) {
