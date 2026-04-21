@@ -816,21 +816,22 @@ class Interpreter:
                 curr_cls = (
                     self.class_table.get(curr_cls.parent_name) if curr_cls.parent_name else None
                 )
-            # Check collision with builtin methods with no params
-            builtin_methods = [
-                "asString",
-                "isNumber",
-                "isString",
-                "isBlock",
-                "isNil",
-                "isBoolean",
-                "print",
-                "value",
-                "length",
-                "asInteger",
-                "not",
-            ]
-            if attr_name in builtin_methods:
+            # All cls inherits from Object
+            active_builtins = {"asString", "isNumber", "isString", "isBlock", "isNil", "isBoolean"}
+
+            # Add specific methods based from which builtin class the object inherits
+            receiver_boss = self._get_boss_cls_name(receiver.sol_class)
+
+            if receiver_boss == "Integer":
+                active_builtins.add("asInteger")
+            elif receiver_boss == "String":
+                active_builtins.update({"print", "length", "asInteger"})
+            elif receiver_boss in ["True", "False"]:
+                active_builtins.add("not")
+            elif receiver_boss == "Block":
+                active_builtins.add("value")
+
+            if attr_name in active_builtins:
                 raise InterpreterError(
                     ErrorCode.INT_INST_ATTR,
                     f"ERROR: attribute {attr_name} collides with existing builtin method",
