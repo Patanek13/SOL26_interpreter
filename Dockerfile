@@ -1,9 +1,9 @@
 # Stage check
-FROM node:24-bookworm-slim AS check
+FROM python:3.14-slim AS check
 
-RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
+RUN apt-get update && apt-get install -y curl \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 RUN pip install --break-system-packages lark "ruff~=0.14.4" "mypy~=1.19.1" "types-lxml>=2026.2.16" "pydantic~=2.12.5" "pydantic-xml[lxml]~=2.19.0"
 
