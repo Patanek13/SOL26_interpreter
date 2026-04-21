@@ -1,0 +1,139 @@
+@startuml
+' Nastavení čistého vzhledu diagramu
+skinparam class {
+    BackgroundColor White
+    ArrowColor Black
+    BorderColor Black
+}
+skinparam shadowing false
+skinparam linetype ortho
+
+' ==========================================
+' ŠABLONOVÉ TŘÍDY (Neimplementované)
+' Sazba šedou barvou a bez atributů/metod
+' ==========================================
+class OrderedElementXmlModel #LightGray
+class Program #LightGray
+class ClassDef #LightGray
+class Method #LightGray
+class Block #LightGray
+class Assign #LightGray
+class Expr #LightGray
+class Send #LightGray
+class Var #LightGray
+class Literal #LightGray
+class Parameter #LightGray
+class Arg #LightGray
+
+' Vestavěné třídy Pythonu pro výjimky a enumy
+class Exception #LightGray
+class Enum #LightGray
+
+OrderedElementXmlModel <|-- Program
+OrderedElementXmlModel <|-- ClassDef
+OrderedElementXmlModel <|-- Method
+OrderedElementXmlModel <|-- Block
+OrderedElementXmlModel <|-- Assign
+OrderedElementXmlModel <|-- Expr
+OrderedElementXmlModel <|-- Send
+OrderedElementXmlModel <|-- Var
+OrderedElementXmlModel <|-- Literal
+OrderedElementXmlModel <|-- Parameter
+OrderedElementXmlModel <|-- Arg
+
+Program "1" *-- "many" ClassDef : classes
+ClassDef "1" *-- "many" Method : methods
+Method "1" o-- "0..1" Block : block
+
+' ==========================================
+' CHYBY A VÝJIMKY (error_codes a exceptions)
+' ==========================================
+enum ErrorCode {
+  SEM_ERROR
+  SEM_COLLISION
+  SEM_ARITY
+  SEM_MAIN
+  ... (další kódy)
+}
+
+class InterpreterError {
+  + error_code: ErrorCode
+  + message: str
+  + __init__(error_code: ErrorCode, message: str)
+}
+
+Enum <|-- ErrorCode
+Exception <|-- InterpreterError
+InterpreterError "*" --> "1" ErrorCode : error_code
+
+' ==========================================
+' TVÉ IMPLEMENTOVANÉ TŘÍDY (Plně rozepsané)
+' ==========================================
+class Interpreter {
+  + current_program: Program
+  + class_table: dict
+  + true_singleton: SolInst
+  + false_singleton: SolInst
+  + nil_singleton: SolInst
+  + load_program(source_file_path: Path)
+  + execute(input_io: TextIO)
+  - _static_check()
+  - initialize_builtins()
+  - _register_classes()
+  - _check_cyclic_inheritance()
+  - _start_main()
+  - eval_assign(assign_node: Assign, curr_frame: LocalFrame)
+  - _var_expr(var_node: Var, curr_frame: LocalFrame)
+  - eval_expr(expr_node: Expr, curr_frame: LocalFrame)
+  - eval_send(send_node: Send, curr_frame: LocalFrame)
+  - _eval_builtin_send(...)
+  - _eval_attr_access(...)
+  - _eval_cls_msg(...)
+  - _cls_msg_new(...)
+  - _builtin_integer(...)
+  - _builtin_string(...)
+  - _builtin_boolean(...)
+  - _builtin_block(...)
+  - _builtin_object(...)
+}
+
+class LocalFrame {
+  + vars: dict
+  + params: set
+  + parent_frame: LocalFrame
+  + owner_class: SolClass
+  + __init__(owner_class, parent_frame)
+}
+
+class SolClass {
+  + name: str
+  + parent_name: str
+  + ast_node: ClassDef
+  + __init__(name, parent_name, ast_node)
+}
+
+class SolInst {
+  + sol_class: SolClass
+  + attrs: dict
+  + val: Any
+  + __init__(sol_class, val)
+}
+
+' ==========================================
+' VZTAHY MEZI TVÝMI TŘÍDAMI A ŠABLONOU
+' ==========================================
+
+Interpreter "1" *-- "many" SolClass : class_table
+Interpreter "1" o-- "1" Program : current_program
+
+SolClass "1" o-- "1" ClassDef : ast_node
+
+SolInst "*" --> "1" SolClass : sol_class
+LocalFrame "*" --> "1" SolClass : owner_class
+LocalFrame "*" --> "1" LocalFrame : parent_frame
+LocalFrame "1" *-- "many" SolInst : vars
+
+' Závislost na výjimkách
+Interpreter ..> InterpreterError : vyhazuje
+Interpreter ..> ErrorCode : používá
+@enduml
