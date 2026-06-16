@@ -79,6 +79,7 @@ The project is fully containerized. You can build the necessary stages directly 
 ```bash
 # Build the production-ready interpreter image
 docker build --target runtime -t sol26-interpreter .
+```
 
 # Build the testing framework image
 docker build --target test -t sol26-tester .
@@ -87,6 +88,7 @@ docker build --target test -t sol26-tester .
 
 ```bash
 docker run --rm -v $(pwd):/app/data sol26-interpreter --source /app/data/program.xml --input /app/data/input.in
+```
 
 ### Running the E2E Tester
 
@@ -94,5 +96,6 @@ The tester accepts various flags for recursive searching (-r), regex filtering (
 
 ```bash
 docker run --rm -v $(pwd)/test_suite:/opt/tests sol26-tester -r -o /opt/tests/report.json /opt/tests
+```
 
-*Note: This project was developed as part of an advanced university course focusing on Principles of Programming Languages and OOP (IPP).*
+*Note: This project was developed as part of an advanced university course IPP focusing on Principles of Programming Languages and OOP.*
